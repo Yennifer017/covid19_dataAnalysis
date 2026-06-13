@@ -37,7 +37,33 @@ sharepoint_sources = [
         "who_covid_19_global_daily_data", 
         "https://1drv.ms/x/c/9b3df75ac5d97177/IQA952j9q_4-RoJeMFhCG5CqAQ79T6BcFqHtAI5SfbpsnHg?e=zDrJgq", 
         0
-    )
+    ),
+    (
+        "mortalidad_por_edades_costa_rica", 
+        "https://1drv.ms/x/c/9b3df75ac5d97177/IQDLvWOtzCNFSpo_Nj6IoP4iAd_egWqve7_kb-3vTNCRCrY?e=UMJhhx", 
+        8
+    ),
+    (
+        "mortalidad_indicadores_costa_rica", 
+        "https://1drv.ms/x/c/9b3df75ac5d97177/IQDZFPcLVZJGSIG-tkWrFlSlAYlX-MwSG8iNa6hBUuX47L4?e=v0P7fX", 
+        8
+    ),
+    (
+        "mortalidad_categorias_costa_rica_2022", 
+        "https://1drv.ms/x/c/9b3df75ac5d97177/IQCZgdufUPXySohL08_uc3cpAelrtRmzH_0lYvb5haQVCGU?e=YWIMQ9", 
+        8
+    ),
+    (
+        "mortalidad_categorias_costa_rica_2021", 
+        "https://1drv.ms/x/c/9b3df75ac5d97177/IQA-resb3FP9RphCtunYyH_vAfD2axPRtwBoonO1m1X22nE?e=KeDxhX", 
+        8
+    ),
+    (
+        "mortalidad_categorias_costa_rica_2020(1)", 
+        "https://1drv.ms/x/c/9b3df75ac5d97177/IQDZZUKSZbzIR5igaZ3f9CzHAbVWmwADCqD4wWUP4-l-bR0?e=WWwKGa", 
+        8
+    ),
+    
 ]
 
 for table_name, url, rows_to_skip in sharepoint_sources:
