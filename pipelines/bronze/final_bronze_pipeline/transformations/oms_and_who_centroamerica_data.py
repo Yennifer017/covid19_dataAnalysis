@@ -59,7 +59,7 @@ sharepoint_sources = [
         8
     ),
     (
-        "mortalidad_categorias_costa_rica_2020(1)", 
+        "mortalidad_categorias_costa_rica_2020", 
         "https://1drv.ms/x/c/9b3df75ac5d97177/IQDZZUKSZbzIR5igaZ3f9CzHAbVWmwADCqD4wWUP4-l-bR0?e=WWwKGa", 
         8
     ),
