@@ -4,7 +4,7 @@
 
 Registrar de forma preliminar los datasets, campos y reglas basicas de uso.
 
-## Contenido minimo
+## Contenido
 
 - Nombre del dataset.
 - Descripcion funcional.
@@ -12,3 +12,7 @@ Registrar de forma preliminar los datasets, campos y reglas basicas de uso.
 - Campos principales.
 - Sensibilidad de los datos.
 - Frecuencia de actualizacion.
+
+## Diccionarios
+
+{{ list_dictionary() }}
