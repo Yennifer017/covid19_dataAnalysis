@@ -18,10 +18,10 @@ Para el desarrollo del pipeline de datos y las analíticas posteriores, se integ
 * **OMS / WHO (Organización Mundial de la Salud):** Series temporales globales de casos diarios y acumulados de COVID-19.
 * **INEC (Instituto Nacional de Estadística y Censos, Costa Rica):** Indicadores, categorías y registros de mortalidad por edades correspondientes a los periodos 2020, 2021 y 2022.
 
-## Segunda fase: limpieza de datos
+### Segunda fase: limpieza de datos
 Pendiente
 
-## Tercera fase: análisis de datos e integración con machine learning
+### Tercera fase: análisis de datos e integración con machine learning
 Pendiente
 
 ---

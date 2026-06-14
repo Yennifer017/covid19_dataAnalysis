@@ -15,9 +15,13 @@ En consonancia con el **Artículo 4 y 5** de dicha ley (que regulan la obligaci�
 La anonimización es el proceso de modificar los datos de manera que los sujetos de los datos ya no puedan ser identificados, de forma directa o indirecta, utilizando "todos los medios que probablemente se utilicen" (Recital 26 del GDPR). A diferencia de la seudonimización, la anonimización es un proceso irreversible.
 
 ### Estrategia y Técnicas Aplicadas
+
 Para garantizar una anonimización efectiva en este proyecto, se implementarán de forma combinada las siguientes técnicas criptográficas y estadísticas:
+
 1. **Supresión de Identificadores Directos:** Eliminación inmediata en la fase de ingesta de nombres, direcciones de correo electrónico, números de identificación, direcciones IP completas y cualquier otro dato de identificación directa.
+
 2. **Generalización y Agrupamiento (K-Anonimato):** Los atributos indirectos o cuasi-identificadores (como la ubicación geográfica exacta o marcas de tiempo precisas) se transformarán en rangos o categorías amplias.
+
 3. **Perturbación de Datos (Ruido Gaussiano / Privacidad Diferencial):** Se inyectará un nivel controlado de ruido matemático a las variables numéricas continuas. Esto evita que un atacante pueda cruzar estos datos con bases de datos externas para reidentificar a un usuario, manteniendo al mismo tiempo la utilidad estadística del conjunto de datos para análisis del proyecto.
 
 ### Proceso de Verificación
