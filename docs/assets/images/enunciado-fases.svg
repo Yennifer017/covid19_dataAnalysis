@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620" role="img" aria-labelledby="title desc">
+  <title id="title">Resumen de fases del proyecto</title>
+  <desc id="desc">Tabla con las fases 1, 2 y 3, su foco principal y la salida demostrable desde el inicio.</desc>
+  <style>
+    .header { fill: #dfe8f5; stroke: #7f9ab8; stroke-width: 2; }
+    .cell { fill: #ffffff; stroke: #b9c6d3; stroke-width: 1.5; }
+    .text { font-family: Arial, Helvetica, sans-serif; fill: #111827; font-size: 22px; }
+    .headtext { font-family: Arial, Helvetica, sans-serif; fill: #345b84; font-size: 22px; font-weight: 700; }
+    .phase { font-family: Arial, Helvetica, sans-serif; fill: #111827; font-size: 24px; }
+    .bold { font-weight: 700; }
+  </style>
+
+  <rect x="0" y="0" width="1100" height="620" fill="#ffffff"/>
+
+  <rect class="header" x="8" y="8" width="125" height="48"/>
+  <rect class="header" x="133" y="8" width="430" height="48"/>
+  <rect class="header" x="563" y="8" width="529" height="48"/>
+  <text class="headtext" x="20" y="40">Fase</text>
+  <text class="headtext" x="145" y="40">Foco principal</text>
+  <text class="headtext" x="575" y="40">Salida demostrable (desde el inicio)</text>
+
+  <rect class="cell" x="8" y="56" width="125" height="176"/>
+  <rect class="cell" x="133" y="56" width="430" height="176"/>
+  <rect class="cell" x="563" y="56" width="529" height="176"/>
+  <text class="phase" x="20" y="160">Fase 1</text>
+  <text class="text" x="145" y="126">Identificación, estructuración,</text>
+  <text class="text" x="145" y="154">limpieza e ingesta de datos</text>
+  <text class="text" x="575" y="104">Datos crudos consolidados en la zona de</text>
+  <text class="text" x="575" y="132">aterrizaje (Sandbox), con diccionario de datos</text>
+  <text class="text" x="575" y="160">y plan de anonimización, <tspan class="bold">Diagrama de</tspan></text>
+  <text class="text" x="575" y="188"><tspan class="bold">Despliegue de la Solución</tspan>, <tspan class="bold">Diagrama ERD de</tspan></text>
+  <text class="text" x="575" y="216"><tspan class="bold">Modelo de Datos</tspan>.</text>
+
+  <rect class="cell" x="8" y="232" width="125" height="146"/>
+  <rect class="cell" x="133" y="232" width="430" height="146"/>
+  <rect class="cell" x="563" y="232" width="529" height="146"/>
+  <text class="phase" x="20" y="314">Fase 2</text>
+  <text class="text" x="145" y="290">Transformación, arquitectura por</text>
+  <text class="text" x="145" y="318">capas y almacenamiento (DW)</text>
+  <text class="text" x="575" y="280">Flujo Sandbox → Stage → Datawarehouse</text>
+  <text class="text" x="575" y="308">cargado en un DW en la nube y en un DW local</text>
+  <text class="text" x="575" y="336">interoperables.</text>
+
+  <rect class="cell" x="8" y="378" width="125" height="174"/>
+  <rect class="cell" x="133" y="378" width="430" height="174"/>
+  <rect class="cell" x="563" y="378" width="529" height="174"/>
+  <text class="phase" x="20" y="474">Fase 3</text>
+  <text class="text" x="145" y="470">Machine Learning, visualización</text>
+  <text class="text" x="145" y="498">analítica e interoperabilidad BI</text>
+  <text class="text" x="575" y="442">Modelo de ML productivo (Regresion Lineal,</text>
+  <text class="text" x="575" y="470">K-means, RandomForests) debe ser</text>
+  <text class="text" x="575" y="498">desarrollado o AWS Sagemaker o en</text>
+  <text class="text" x="575" y="526">Databricks + 2 visualizaciones en Power BI y 2</text>
+  <text class="text" x="575" y="554">en otra herramienta, con análisis</text>
+  <text class="text" x="575" y="582">pre/post-COVID.</text>
+</svg>

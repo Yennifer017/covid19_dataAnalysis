@@ -12,8 +12,10 @@ La documentacion tecnica del proyecto se construye con MkDocs y se publica autom
 
 No es obligatorio para el repositorio, pero se recomienda usar uno para aislar MkDocs y sus dependencias.
 
+Si el `python3` de Homebrew da problemas con `ensurepip`, es mejor usar  explícitamente el Python del sistema:
+
 ```bash
-python3 -m venv .venv
+/usr/bin/python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -31,8 +33,8 @@ pip install -r requirements.txt
    ```bash
    mkdocs serve
    ```
-
-3. Generar la version esttica:
+    
+3. Generar la version estatica:
 
    ```bash
    mkdocs build --strict
@@ -43,4 +45,4 @@ pip install -r requirements.txt
 - La configuracion de MkDocs esta en [mkdocs.yml](mkdocs.yml).
 - El flujo de publicacion automatica esta en [.github/workflows/mkdocs.yml](.github/workflows/mkdocs.yml).
 - El contenido base vive en [docs/](docs/).
-- GitHub Pages debe quedar habilitado en la configuracion del repositorio para publicar el sitio.
+- En GitHub Pages se deja habilitado en la configuracion del repositorio para publicar el sitio.

@@ -4,6 +4,7 @@ site_author: Equipo del proyecto
 
 nav:
   - Inicio: index.md
+  - Enunciado: enunciado.md
   - Gobernanza y etica: gobernanza-etica.md
   - Diccionario de datos: diccionario-datos.md
   - Catalogo de metadatos: catalogo-metadatos.md

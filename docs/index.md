@@ -10,6 +10,10 @@ El núcleo de la investigación radica en un análisis comparativo dentro de la 
 
 ## Resumen
 
+### Enunciado del proyecto
+
+El enunciado completo del proyecto está disponible en [Enunciado](enunciado.md), con la estructura de fases y la tabla resumen transcrita en formato Markdown.
+
 ### Primera fase: búsqueda y extracción de datos
 Para el desarrollo del pipeline de datos y las analíticas posteriores, se integraron las siguientes fuentes oficiales e internacionales:
 
