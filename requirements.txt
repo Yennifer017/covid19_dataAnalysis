@@ -38,6 +38,5 @@ pyyaml_env_tag==1.1
 requests==2.34.2
 s3transfer==0.18.0
 six==1.17.0
-Spark==0.4.1
 urllib3==2.7.0
 watchdog==6.0.0
