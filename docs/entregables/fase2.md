@@ -2,31 +2,31 @@
 
 ## Descripción
 
-En esta fase se desarrolla el pipeline completo de extracción, transformación y carga (ETL) para el análisis de mortalidad COVID-19. El pipeline implementa arquitectura medallion (Bronze → Silver → Gold) utilizando Lakeflow Spark Declarative Pipelines.
+Desarrollo del pipeline ETL para análisis de mortalidad COVID-19 usando arquitectura medallion (Bronze → Silver → Gold) con Lakeflow Spark Declarative Pipelines.
 
-## Componentes Principales
+## Arquitectura del Pipeline
 
-### 1. Arquitectura del Pipeline
+### Capas del Pipeline
 
-* **Capa Bronze:** Ingestión de datos crudos de múltiples fuentes
-  * INE Guatemala (mortalidad departamental)
-  * OMS (datos COVID-19 globales)
-  * RENAP (eventos civiles)
-  * INACIF (catálogos de causas y geografía)
+**Bronze - Datos crudos:**
+* INE Guatemala (mortalidad departamental)
+* OMS (datos COVID-19 globales)
+* RENAP (eventos civiles)
+* INACIF (catálogos de causas y geografía)
 
-* **Capa Silver:** Limpieza y normalización de datos
-  * Estandarización de esquemas
-  * Limpieza de valores NaN/NULL
-  * Normalización de tipos de datos
-  * Unpivot de estructuras anchas a largas
+**Silver - Datos limpios:**
+* Estandarización de esquemas
+* Limpieza de valores NaN/NULL
+* Normalización de tipos de datos
+* Unpivot de estructuras anchas a largas
 
-* **Capa Gold:** Modelo dimensional (Star Schema)
-  * 4 dimensiones maestras
-  * 3 tablas de hechos parciales
-  * 1 tabla consolidada
-  * 1 tabla de contexto
+**Gold - Modelo dimensional:**
+* 4 dimensiones maestras
+* 3 tablas de hechos parciales
+* 1 tabla consolidada
+* 1 tabla de contexto
 
-### 2. Modelo Dimensional
+### Modelo Dimensional
 
 **Dimensiones:**
 * `dim_tiempo` - 144 meses (2015-2026) con clasificación Pre-COVID/Pandemia
@@ -41,35 +41,35 @@ En esta fase se desarrolla el pipeline completo de extracción, transformación 
 * `fact_mortalidad_unificada` - 48,755 registros (consolidado)
 * `fact_contexto_renap` - 1,943 registros (eventos civiles)
 
-### 3. Transformaciones Implementadas
+### Transformaciones
 
-El pipeline implementa 25 reglas de transformación auditable, categorizadas en:
+Se implementaron 25 reglas de transformación auditable:
 
 * **Calidad de Datos:** Gestión de NaN, validaciones, normalización de esquemas
 * **Transformaciones de Negocio:** Clasificación CIE-10, rangos etarios, periodos pandemia
 * **Data Warehouse:** Generación de surrogate keys, agregaciones dimensionales
 * **Integración:** Consolidación de fuentes, preservación de trazabilidad
 
-📋 **Documentación completa:** [STM y Reglas de Transformación Auditable](../stm-reglas-transformacion.md)
+Ver documentación completa: [STM y Reglas de Transformación Auditable](../stm-reglas-transformacion.md)
 
-### 4. Estrategia de Trabajo en Equipo
+### Estrategia de Trabajo
 
-El desarrollo se organizó en 3 fases secuenciales:
+Desarrollo en 3 fases:
 
-**FASE 1: Dimensiones Maestras** (Trabajo colaborativo)
+**Fase 1 - Dimensiones Maestras (colaborativo):**
 * Creación de diccionarios compartidos
-* Definición de convenciones de nomenclatura
-* Generación de datos sintéticos para agregaciones
+* Convenciones de nomenclatura
+* Datos sintéticos para agregaciones
 
-**FASE 2: Tablas Parciales** (Trabajo paralelo)
+**Fase 2 - Tablas Parciales (paralelo):**
 * Wilson: INE + RENAP (Guatemala departamental)
 * Yeni: OMS Guatemala (nacional COVID)
 * Byron: OMS Costa Rica (nacional COVID)
 
-**FASE 3: Consolidación** (Trabajo colaborativo)
+**Fase 3 - Consolidación (colaborativo):**
 * UNION ALL de tablas parciales
 * Validaciones de integridad referencial
-* Pruebas de calidad de datos
+* Pruebas de calidad
 
 ## Entregables
 
@@ -89,7 +89,7 @@ El desarrollo se organizó en 3 fases secuenciales:
 
 ### Documentación Técnica
 
-* **[STM y Reglas de Transformación Auditable](../stm-reglas-transformacion.md)** ⭐ *NUEVO*
+* **[STM y Reglas de Transformación Auditable](../stm-reglas-transformacion.md)**
   * 25 reglas de transformación documentadas
   * Mapeos completos Source-to-Target
   * Linaje de datos por fuente
@@ -122,17 +122,17 @@ El desarrollo se organizó en 3 fases secuenciales:
 
 ### Diagramas y Modelos
 
-* **[📐 Diagrama de Despliegue](https://drive.google.com/file/d/18b3k_3RjToLoVRJJyAxvWQCRz0q2Xo05/view?usp=drive_link)** (Google Drive)
+* **[Diagrama de Despliegue](https://drive.google.com/file/d/18b3k_3RjToLoVRJJyAxvWQCRz0q2Xo05/view?usp=drive_link)** (Google Drive)
   * Arquitectura de despliegue del sistema
   * Componentes de infraestructura
   * Flujos de datos entre capas
 
-* **[🗄️ Modelo ERD en Data Modeler](https://drive.google.com/file/d/1wDKIUzympT9m_i_NJar_04tFYun4Ke3_/view?usp=drive_link)** (Google Drive)
+* **[Modelo ERD en Data Modeler](https://drive.google.com/file/d/1wDKIUzympT9m_i_NJar_04tFYun4Ke3_/view?usp=drive_link)** (Google Drive)
   * Diagrama Entidad-Relación completo
   * Relaciones entre dimensiones y hechos
   * Cardinalidades y claves foráneas
 
-* **[📊 Source-to-Target Mapping (Spreadsheet)](https://docs.google.com/spreadsheets/d/1UQjlX1iwqx1P1YFa0uI4anEBj6fUxkGXkwt8yoGjT1w/edit?usp=drive_link)** (Google Sheets)
+* **[Source-to-Target Mapping](https://docs.google.com/spreadsheets/d/1UQjlX1iwqx1P1YFa0uI4anEBj6fUxkGXkwt8yoGjT1w/edit?usp=drive_link)** (Google Sheets)
   * Mapeos tabulares completos
   * Transformaciones campo a campo
   * Referencias cruzadas entre fuentes y destinos
@@ -146,15 +146,15 @@ El desarrollo se organizó en 3 fases secuenciales:
 * Total fallecidos: 703,665 (todas las causas)
 
 **Integridad Referencial:**
-* ✅ 100% de claves foráneas válidas
-* ✅ 0 registros con FK huérfanas
-* ✅ Todas las dimensiones completas
+* 100% de claves foráneas válidas
+* 0 registros con FK huérfanas
+* Todas las dimensiones completas
 
 **Calidad de Transformaciones:**
-* ✅ 25 reglas de transformación implementadas
-* ✅ NaN/NULL gestionados correctamente
-* ✅ Esquemas normalizados (12/12 tablas RENAP)
-* ✅ Consolidación verificada: 48,656 + 45 + 54 = 48,755
+* 25 reglas de transformación implementadas
+* NaN/NULL gestionados correctamente
+* Esquemas normalizados (12/12 tablas RENAP)
+* Consolidación verificada: 48,656 + 45 + 54 = 48,755
 
 ## Tecnologías Utilizadas
 
@@ -164,15 +164,44 @@ El desarrollo se organizó en 3 fases secuenciales:
 * **PySpark:** Transformaciones de datos
 * **Unity Catalog:** Gobierno de datos
 
-## Estado de Completitud
+## Backup Local en PostgreSQL
 
-✅ **100% COMPLETADO** - Pipeline operativo y documentado
+### Contexto
 
-* ✅ Arquitectura medallion implementada
-* ✅ Modelo dimensional construido
-* ✅ Transformaciones auditables documentadas
-* ✅ Validaciones de calidad implementadas
-* ✅ Documentación técnica completa
+Por restricciones del workspace de Databricks:
+* Sin clusters tradicionales (solo serverless)
+* DBFS público deshabilitado
+* Workspace filesystem no permite escritura Spark directa
+
+Se implementó un backup manual a PostgreSQL local (201.216.147.250) mediante descarga CSV.
+
+### Proceso de Backup
+
+1. Consultas SQL para cada tabla Gold
+2. Descarga manual de resultados como CSV
+3. Importación a PostgreSQL con schema `covid19_gold_backup`
+
+Ver notebook: `/pipelines/silver/Cleaning 2026-06-19 22:54/Backup Gold a PostgreSQL Local`
+
+### Tablas respaldadas
+
+* dim_tiempo (144 registros)
+* dim_geografia (25 registros)
+* dim_perfil (12 registros)
+* dim_causa_muerte (48 registros)
+* fact_mortalidad_unificada (48,755 registros)
+* fact_contexto_renap (1,943 registros)
+
+## Estado
+
+**Fase completada** - Pipeline operativo y documentado
+
+* Arquitectura medallion implementada
+* Modelo dimensional construido
+* Transformaciones auditables documentadas
+* Validaciones de calidad implementadas
+* Documentación técnica completa
+* Backup en PostgreSQL disponible
 
 ## Próximos Pasos
 
