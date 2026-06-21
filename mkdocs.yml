@@ -8,6 +8,7 @@ nav:
   - Gobernanza y etica: gobernanza-etica.md
   - Diccionario de datos: diccionario-datos.md
   - Catalogo de metadatos: catalogo-metadatos.md
+  - STM y Reglas de Transformación: stm-reglas-transformacion.md
   - Entregables: entregables.md
 
 theme:
@@ -26,6 +27,7 @@ markdown_extensions:
   - md_in_html
   - pymdownx.details
   - pymdownx.superfences
+  - tables
 
 plugins:
   - search
