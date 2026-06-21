@@ -95,27 +95,27 @@ El desarrollo se organizó en 3 fases secuenciales:
   * Linaje de datos por fuente
   * Validaciones de integridad referencial
 
-* **[Modelo Estrella - Documentación Principal](../../pipelines/silver/Cleaning 2026-06-19 22:54/MODELO_ESTRELLA_DOCUMENTACION.md)**
+* **Modelo Estrella - Documentación Principal** (Workspace: `/pipelines/silver/Cleaning 2026-06-19 22:54/MODELO_ESTRELLA_DOCUMENTACION.md`)
   * Resumen ejecutivo del proyecto
   * Arquitectura del modelo dimensional
   * Estructura del pipeline
 
-* **[Diccionario de Datos](../../pipelines/silver/Cleaning 2026-06-19 22:54/docs/DICCIONARIO_DATOS.md)**
+* **Diccionario de Datos** (Workspace: `/pipelines/silver/Cleaning 2026-06-19 22:54/docs/DICCIONARIO_DATOS.md`)
   * Definiciones de todas las tablas y columnas
   * Reglas de negocio por tabla
   * Casos de uso y ejemplos
 
-* **[Mapeos y Transformaciones](../../pipelines/silver/Cleaning 2026-06-19 22:54/docs/MAPEOS_TRANSFORMACIONES.md)**
+* **Mapeos y Transformaciones** (Workspace: `/pipelines/silver/Cleaning 2026-06-19 22:54/docs/MAPEOS_TRANSFORMACIONES.md`)
   * Transformaciones Bronze→Silver→Gold
   * Reglas de limpieza de datos
   * Ejemplos de transformación
 
-* **[Queries de Ejemplo](../../pipelines/silver/Cleaning 2026-06-19 22:54/docs/QUERIES_EJEMPLO.md)**
+* **Queries de Ejemplo** (Workspace: `/pipelines/silver/Cleaning 2026-06-19 22:54/docs/QUERIES_EJEMPLO.md`)
   * 10+ queries listas para ejecutar
   * Casos de uso analíticos
   * Ejemplos de agregaciones
 
-* **[Resumen Ejecutivo](../../pipelines/silver/Cleaning 2026-06-19 22:54/docs/RESUMEN_EJECUTIVO.md)**
+* **Resumen Ejecutivo** (Workspace: `/pipelines/silver/Cleaning 2026-06-19 22:54/docs/RESUMEN_EJECUTIVO.md`)
   * Métricas clave del proyecto
   * Hallazgos principales
   * Estado de completitud
