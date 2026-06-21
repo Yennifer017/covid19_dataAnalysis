@@ -63,7 +63,7 @@ def covid19_gold_dim_tiempo():
 def covid19_gold_dim_geografia():
     """
     Dimensión geográfica con departamentos de Guatemala y Costa Rica.
-    Incluye mapeos desde códigos INE/INACIF.
+    Incluye mapeos desde códigos INE/INACIF y niveles nacionales.
     """
     # Cargar departamentos de Guatemala desde INACIF
     gt_dept = spark.read.table("covid19.bronze.inacif_departamentos") \
@@ -76,13 +76,14 @@ def covid19_gold_dim_geografia():
             F.col("nombre").alias("nombre_departamento")
         )
     
-    # Agregar Costa Rica (nivel país, sin subdivisión por ahora)
-    cr_row = spark.createDataFrame([
-        ("CR-NA", "Costa Rica", 0, "Nacional")
+    # Agregar niveles nacionales (agregados sin desglose departamental)
+    niveles_nacionales = spark.createDataFrame([
+        ("GT-NA", "Guatemala", 99, "Nacional"),  # Agregado nacional de Guatemala (para OMS)
+        ("CR-NA", "Costa Rica", 0, "Nacional")   # Agregado nacional de Costa Rica
     ], ["id_geografia", "pais", "id_departamento", "nombre_departamento"])
     
-    # Unir ambos
-    df = gt_dept.union(cr_row)
+    # Unir departamentos con niveles nacionales
+    df = gt_dept.union(niveles_nacionales)
     
     return df.orderBy("pais", "id_departamento")
 
