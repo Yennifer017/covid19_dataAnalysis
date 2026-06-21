@@ -1,0 +1,17 @@
+# Archivo de instrucciones de diseño para Lakeflow Declarative Pipelines
+# Modelo objetivo para capa Gold
+
+# Dimensiones (Filtros comunes):
+
+# dim_tiempo: id_tiempo_mes (Ej. "2020-01"), anio, mes, periodo ("Pre-COVID" o "Pandemia")
+# dim_geografia: id_geografia (Ej. "GT-1", "CR-NA"), pais, id_departamento, nombre_departamento
+# dim_perfil: id_perfil (Ej. "H-15-64"), sexo ("Hombre", "Mujer", "Ambos"), rango_edad ("0-14", "15-64", "65+", "Todas")
+# dim_causa_muerte: id_causa (Ej. "RESP", "COV"), categoria_general ("Enfermedad Respiratoria", "COVID-19", "Causa Externa", "Otra"), es_covid (Boolean)
+
+# Tablas de Hechos (Donde se unen los datos):
+
+# fact_mortalidad_unificada: id_tiempo_mes, id_geografia, id_perfil, id_causa, cantidad_fallecidos, fuente (INE, INACIF, OMS, CR)
+# fact_contexto_renap: id_tiempo_mes, tipo_evento (Nacimiento, etc.), cantidad
+
+# Todos los desarrollos deben asegurar que los datos procesados en cada etapa encajen exactamente en estas columnas finales.
+# El trabajo individual debe considerar este modelo para facilitar la integración en la capa Gold.

@@ -39,7 +39,7 @@ def download_public_gdrive_csv(file_id: str, skiprows: int) -> pd.DataFrame:
 )
 def who_mortality_bronze():
     GOOGLE_DRIVE_FILE_ID = "1XC5fwdXo94bLmpTDB4JkN79cr8bGs5o8"
-    METADATA_ROWS_TO_SKIP = 9
+    METADATA_ROWS_TO_SKIP = 8
     
     pdf_data = download_public_gdrive_csv(
         file_id=GOOGLE_DRIVE_FILE_ID, 
