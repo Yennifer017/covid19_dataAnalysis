@@ -1,0 +1,846 @@
+# Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
+# === PREDICCIÓN DE MORTALIDAD COVID-19 CON RIDGE Y LASSO ===
+
+# 1. IMPORTAR LIBRERÍAS
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import Ridge, Lasso
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+import warnings
+warnings.filterwarnings('ignore')
+
+print("="*70)
+print("MODELO DE PREDICCIÓN DE MORTALIDAD COVID-19")
+print("Técnicas: Ridge Regression vs Lasso Regression")
+print("="*70)
+
+# 2. CARGAR DATOS
+print("\n[1/8] Cargando datos...")
+df_mortalidad = spark.table("covid19.gold.covid19_gold_fact_mortalidad_unificada").toPandas()
+df_contexto = spark.table("covid19.gold.covid19_gold_fact_contexto_renap").toPandas()
+
+print(f"  ✓ Mortalidad: {df_mortalidad.shape[0]:,} registros")
+print(f"  ✓ Contexto RENAP: {df_contexto.shape[0]:,} registros")
+
+# 3. PREPARAR DATOS DE CONTEXTO (PIVOT)
+print("\n[2/8] Pivotando datos de contexto RENAP...")
+df_contexto_pivot = df_contexto.pivot_table(
+    index='id_tiempo_mes',
+    columns='tipo_evento',
+    values='cantidad',
+    aggfunc='sum',
+    fill_value=0
+).reset_index()
+
+df_contexto_pivot.columns = ['id_tiempo_mes'] + [f'renap_{col.replace(" ", "_").lower()}' for col in df_contexto_pivot.columns[1:]]
+print(f"  ✓ {df_contexto_pivot.shape[1]-1} variables RENAP creadas")
+
+# 4. UNIR DATOS Y FEATURE ENGINEERING
+print("\n[3/8] Uniendo datos y creando features...")
+df = df_mortalidad.merge(df_contexto_pivot, on='id_tiempo_mes', how='left')
+renap_cols = [col for col in df.columns if col.startswith('renap_')]
+df[renap_cols] = df[renap_cols].fillna(0)
+df['año'] = df['id_tiempo_mes'].str[:4].astype(int)
+df['mes'] = df['id_tiempo_mes'].str[5:7].astype(int)
+df_encoded = pd.get_dummies(df, columns=['id_geografia', 'id_perfil', 'id_causa'], drop_first=False)
+print(f"  ✓ Dataset final: {df_encoded.shape[0]:,} registros, {df_encoded.shape[1]} features")
+
+# 5. PREPARAR X E Y
+print("\n[4/8] Preparando features y target...")
+columnas_excluir = ['id_tiempo_mes', 'fuente', 'fecha_actualizacion', 'cantidad_fallecidos']
+feature_cols = [col for col in df_encoded.columns if col not in columnas_excluir]
+X = df_encoded[feature_cols].select_dtypes(include=[np.number])
+y = df_encoded['cantidad_fallecidos']
+print(f"  ✓ {X.shape[1]} features seleccionados")
+print(f"  ✓ Target → Media: {y.mean():.2f}, Min: {y.min()}, Max: {y.max()}")
+
+# 6. TRAIN/TEST SPLIT
+print("\n[5/8] Dividiendo datos (80% train / 20% test)...")
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+print(f"  ✓ Train: {X_train.shape[0]:,} registros")
+print(f"  ✓ Test:  {X_test.shape[0]:,} registros")
+
+# 7. ENTRENAR MODELOS
+print("\n[6/8] Entrenando modelos...")
+ridge_model = Ridge(alpha=1.0, random_state=42)
+ridge_model.fit(X_train_scaled, y_train)
+y_pred_ridge = ridge_model.predict(X_test_scaled)
+print("  ✓ Ridge entrenado")
+
+lasso_model = Lasso(alpha=1.0, random_state=42)
+lasso_model.fit(X_train_scaled, y_train)
+y_pred_lasso = lasso_model.predict(X_test_scaled)
+print("  ✓ Lasso entrenado")
+
+# 8. EVALUAR Y COMPARAR
+print("\n[7/8] Evaluando modelos...")
+rmse_ridge = np.sqrt(mean_squared_error(y_test, y_pred_ridge))
+r2_ridge = r2_score(y_test, y_pred_ridge)
+mae_ridge = mean_absolute_error(y_test, y_pred_ridge)
+rmse_lasso = np.sqrt(mean_squared_error(y_test, y_pred_lasso))
+r2_lasso = r2_score(y_test, y_pred_lasso)
+mae_lasso = mean_absolute_error(y_test, y_pred_lasso)
+
+resultados = pd.DataFrame({
+    'Modelo': ['Ridge', 'Lasso'],
+    'RMSE': [rmse_ridge, rmse_lasso],
+    'R²': [r2_ridge, r2_lasso],
+    'MAE': [mae_ridge, mae_lasso]
+})
+
+print("\n" + "="*70)
+print("RESULTADOS - COMPARACIÓN DE MODELOS")
+print("="*70)
+display(resultados)
+
+mejor_modelo = 'Ridge' if r2_ridge > r2_lasso else 'Lasso'
+mejor_r2 = max(r2_ridge, r2_lasso)
+print(f"\n🏆 MEJOR MODELO: {mejor_modelo} (R² = {mejor_r2:.4f})")
+
+# 9. VISUALIZACIONES
+print("\n[8/8] Generando visualizaciones...")
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+axes[0].scatter(y_test, y_pred_ridge, alpha=0.5, s=20)
+axes[0].plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
+axes[0].set_xlabel('Valores Reales', fontsize=11)
+axes[0].set_ylabel('Predicciones', fontsize=11)
+axes[0].set_title(f'Ridge - R² = {r2_ridge:.4f}, RMSE = {rmse_ridge:.2f}', fontsize=12, fontweight='bold')
+axes[0].grid(True, alpha=0.3)
+
+axes[1].scatter(y_test, y_pred_lasso, alpha=0.5, s=20, color='orange')
+axes[1].plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
+axes[1].set_xlabel('Valores Reales', fontsize=11)
+axes[1].set_ylabel('Predicciones', fontsize=11)
+axes[1].set_title(f'Lasso - R² = {r2_lasso:.4f}, RMSE = {rmse_lasso:.2f}', fontsize=12, fontweight='bold')
+axes[1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Gráfico 2: Top Features
+best_model = ridge_model if r2_ridge > r2_lasso else lasso_model
+model_name = 'Ridge' if r2_ridge > r2_lasso else 'Lasso'
+
+coef_df = pd.DataFrame({'Feature': X.columns, 'Coeficiente': best_model.coef_})
+coef_df['Abs_Coef'] = np.abs(coef_df['Coeficiente'])
+coef_df_top = coef_df.sort_values('Abs_Coef', ascending=False).head(15)
+
+plt.figure(figsize=(10, 6))
+plt.barh(range(len(coef_df_top)), coef_df_top['Coeficiente'], 
+         color=['green' if x > 0 else 'red' for x in coef_df_top['Coeficiente']])
+plt.yticks(range(len(coef_df_top)), coef_df_top['Feature'], fontsize=9)
+plt.xlabel('Coeficiente', fontsize=11)
+plt.title(f'Top 15 Features más Importantes - Modelo {model_name}', fontsize=12, fontweight='bold')
+plt.axvline(x=0, color='black', linestyle='--', linewidth=0.8)
+plt.grid(True, alpha=0.3, axis='x')
+plt.tight_layout()
+plt.show()
+
+print("\n" + "="*70)
+print("✓ ANÁLISIS COMPLETADO")
+print("="*70)
+
+
+# COMMAND ----------
+
+# DBTITLE 1,📋 Modelo Híbrido - Documentación
+# MAGIC %md
+# MAGIC # 🔄 MODELO HÍBRIDO: Diseño Dimensional Mejorado
+# MAGIC
+# MAGIC ## Estrategia de Implementación
+# MAGIC
+# MAGIC ### **Modelo A: INE Desagregado (Granular)**
+# MAGIC - **Fuente**: INE (filtrado)
+# MAGIC - **JOIN**: Con todas las dimensiones (geografía, perfil, causa, tiempo)
+# MAGIC - **Features**: Descriptivos (sexo, rango_edad, categoria_general, departamento) + RENAP total
+# MAGIC - **Target**: cantidad_fallecidos (por registro desagregado)
+# MAGIC - **Objetivo**: Predecir mortalidad granular por departamento/causa/perfil
+# MAGIC
+# MAGIC ### **Modelo B: RENAP Agregado (Total Mensual)**
+# MAGIC - **Fuente**: RENAP Defunciones
+# MAGIC - **Features**: Eventos RENAP (nacimientos, matrimonios, etc.) + tiempo
+# MAGIC - **Target**: total_defunciones_renap (mensual)
+# MAGIC - **Objetivo**: Predecir total mensual nacional
+# MAGIC
+# MAGIC ### **Validación Cruzada**
+# MAGIC - Agregar predicciones del Modelo A por mes
+# MAGIC - Comparar con predicciones del Modelo B
+# MAGIC - Calcular error entre ambos enfoques
+# MAGIC - Verificar consistencia
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ## Comparación con Modelo Baseline
+# MAGIC
+# MAGIC | Aspecto | Baseline (Actual) | Modelo Híbrido |
+# MAGIC |---------|-------------------|----------------|
+# MAGIC | Fuentes | Mezcla INE+CR+OMS | INE filtrado + RENAP |
+# MAGIC | Dimensiones | No usa (IDs) | JOIN completo |
+# MAGIC | Features | 24 (opacos) | 45+ (descriptivos) |
+# MAGIC | COVID flag | No | Sí (es_covid) |
+# MAGIC | Validación | Ninguna | Cruzada A↔B |
+# MAGIC | Interpretabilidad | Baja | Alta |
+
+# COMMAND ----------
+
+# DBTITLE 1,Importaciones para Modelo Híbrido
+# Importaciones necesarias para el Modelo Híbrido
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import Ridge, Lasso
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+import warnings
+warnings.filterwarnings('ignore')
+
+print("✓ Librerías importadas para Modelo Híbrido")
+
+# COMMAND ----------
+
+# DBTITLE 1,Modelo A: INE Desagregado con Dimensiones
+# === MODELO A: INE DESAGREGADO CON DISEÑO DIMENSIONAL ===
+
+print("\n" + "="*70)
+print("MODELO A: INE DESAGREGADO + DIMENSIONES")
+print("="*70)
+
+# 1. CARGAR DATOS FILTRADOS (SOLO INE)
+print("\n[A1] Cargando datos INE y dimensiones...")
+df_mortalidad_ine = spark.sql("""
+    SELECT * 
+    FROM covid19.gold.covid19_gold_fact_mortalidad_unificada
+    WHERE fuente = 'INE'
+""").toPandas()
+
+dim_geografia = spark.table("covid19.gold.covid19_gold_dim_geografia").toPandas()
+dim_perfil = spark.table("covid19.gold.covid19_gold_dim_perfil").toPandas()
+dim_causa = spark.table("covid19.gold.covid19_gold_dim_causa_muerte").toPandas()
+dim_tiempo = spark.table("covid19.silver.covid19_gold_dim_tiempo").toPandas()
+
+print(f"  ✓ Mortalidad INE: {df_mortalidad_ine.shape[0]:,} registros")
+print(f"  ✓ Geografía: {dim_geografia.shape[0]} departamentos")
+print(f"  ✓ Perfil: {dim_perfil.shape[0]} perfiles (sexo x edad)")
+print(f"  ✓ Causa: {dim_causa.shape[0]} causas de muerte")
+print(f"  ✓ Tiempo: {dim_tiempo.shape[0]} períodos")
+
+# 2. AGREGAR RENAP DEFUNCIONES (TOTAL MENSUAL)
+print("\n[A2] Agregando RENAP Defunciones como feature...")
+renap_defunciones = spark.sql("""
+    SELECT id_tiempo_mes, cantidad as total_defunciones_renap
+    FROM covid19.gold.covid19_gold_fact_contexto_renap
+    WHERE tipo_evento = 'Defunciones'
+""").toPandas()
+
+print(f"  ✓ RENAP Defunciones: {renap_defunciones.shape[0]} meses")
+
+# 3. JOIN CON TODAS LAS DIMENSIONES
+print("\n[A3] Haciendo JOIN dimensional...")
+df_a = df_mortalidad_ine\
+    .merge(dim_geografia, on='id_geografia', how='left')\
+    .merge(dim_perfil, on='id_perfil', how='left')\
+    .merge(dim_causa, on='id_causa', how='left')\
+    .merge(dim_tiempo, on='id_tiempo_mes', how='left')\
+    .merge(renap_defunciones, on='id_tiempo_mes', how='left')
+
+df_a['total_defunciones_renap'] = df_a['total_defunciones_renap'].fillna(0)
+
+print(f"  ✓ Dataset con dimensiones: {df_a.shape[0]:,} registros, {df_a.shape[1]} columnas")
+
+# 4. FEATURE ENGINEERING DIMENSIONAL
+print("\n[A4] Feature engineering dimensional...")
+df_a['es_covid_int'] = df_a['es_covid'].astype(int)
+df_a['mes_sin'] = np.sin(2 * np.pi * df_a['mes'] / 12)
+df_a['mes_cos'] = np.cos(2 * np.pi * df_a['mes'] / 12)
+
+print(f"  ✓ Flag COVID creado (es_covid_int)")
+print(f"  ✓ Encoding circular de mes (sin/cos)")
+
+# 5. ONE-HOT ENCODING DE CATEGORÍAS DESCRIPTIVAS
+print("\n[A5] One-hot encoding de categorías descriptivas...")
+df_a_encoded = pd.get_dummies(df_a, columns=[
+    'sexo', 
+    'rango_edad', 
+    'categoria_general',
+    'nombre_departamento'
+], drop_first=False)
+
+print(f"  ✓ Dataset encoded: {df_a_encoded.shape[1]} features totales")
+
+# 6. PREPARAR X e Y
+print("\n[A6] Preparando features y target...")
+cols_excluir_a = ['id_tiempo_mes', 'id_geografia', 'id_perfil', 'id_causa', 
+                  'fuente', 'fecha_actualizacion', 'cantidad_fallecidos',
+                  'pais', 'id_departamento', 'nombre_causa', 'es_covid',
+                  'anio', 'nombre_mes', 'periodo']
+
+feature_cols_a = [col for col in df_a_encoded.columns if col not in cols_excluir_a]
+X_a = df_a_encoded[feature_cols_a].select_dtypes(include=[np.number])
+y_a = df_a_encoded['cantidad_fallecidos']
+
+print(f"  ✓ Features finales: {X_a.shape[1]}")
+print(f"  ✓ Target → Media: {y_a.mean():.2f}, Min: {y_a.min()}, Max: {y_a.max()}")
+
+# 7. TRAIN/TEST SPLIT Y NORMALIZACIÓN
+print("\n[A7] Train/Test split (80/20)...")
+X_a_train, X_a_test, y_a_train, y_a_test = train_test_split(
+    X_a, y_a, test_size=0.2, random_state=42
+)
+
+scaler_a = StandardScaler()
+X_a_train_scaled = scaler_a.fit_transform(X_a_train)
+X_a_test_scaled = scaler_a.transform(X_a_test)
+
+print(f"  ✓ Train: {X_a_train.shape[0]:,}")
+print(f"  ✓ Test: {X_a_test.shape[0]:,}")
+
+# 8. ENTRENAR RIDGE Y LASSO
+print("\n[A8] Entrenando Ridge y Lasso...")
+ridge_a = Ridge(alpha=1.0, random_state=42)
+ridge_a.fit(X_a_train_scaled, y_a_train)
+y_pred_ridge_a = ridge_a.predict(X_a_test_scaled)
+
+lasso_a = Lasso(alpha=1.0, random_state=42)
+lasso_a.fit(X_a_train_scaled, y_a_train)
+y_pred_lasso_a = lasso_a.predict(X_a_test_scaled)
+
+print("  ✓ Ridge A entrenado")
+print("  ✓ Lasso A entrenado")
+
+# 9. MÉTRICAS MODELO A
+print("\n[A9] Evaluando Modelo A...")
+rmse_ridge_a = np.sqrt(mean_squared_error(y_a_test, y_pred_ridge_a))
+r2_ridge_a = r2_score(y_a_test, y_pred_ridge_a)
+mae_ridge_a = mean_absolute_error(y_a_test, y_pred_ridge_a)
+
+rmse_lasso_a = np.sqrt(mean_squared_error(y_a_test, y_pred_lasso_a))
+r2_lasso_a = r2_score(y_a_test, y_pred_lasso_a)
+mae_lasso_a = mean_absolute_error(y_a_test, y_pred_lasso_a)
+
+resultados_a = pd.DataFrame({
+    'Modelo': ['Ridge A', 'Lasso A'],
+    'RMSE': [rmse_ridge_a, rmse_lasso_a],
+    'R²': [r2_ridge_a, r2_lasso_a],
+    'MAE': [mae_ridge_a, mae_lasso_a]
+})
+
+print("\n" + "="*70)
+print("RESULTADOS MODELO A (INE DESAGREGADO)")
+print("="*70)
+display(resultados_a)
+
+mejor_a = 'Ridge A' if r2_ridge_a > r2_lasso_a else 'Lasso A'
+print(f"\n🏆 Mejor en Modelo A: {mejor_a} (R² = {max(r2_ridge_a, r2_lasso_a):.4f})")
+
+# 10. GUARDAR PARA VALIDACIÓN CRUZADA
+test_indices_a = X_a_test.index
+df_test_a = df_a_encoded.loc[test_indices_a, ['id_tiempo_mes', 'cantidad_fallecidos']].copy()
+df_test_a['pred_ridge_a'] = y_pred_ridge_a
+df_test_a['pred_lasso_a'] = y_pred_lasso_a
+
+print(f"\n✓ Datos de test guardados para validación cruzada")
+
+# COMMAND ----------
+
+# DBTITLE 1,Modelo B: RENAP Agregado Mensual
+# === MODELO B: RENAP AGREGADO MENSUAL ===
+
+print("\n" + "="*70)
+print("MODELO B: RENAP AGREGADO (TOTAL MENSUAL)")
+print("="*70)
+
+# 1. CARGAR DATOS RENAP AGREGADOS
+print("\n[B1] Cargando datos RENAP agregados...")
+df_renap_base = spark.sql("""
+    SELECT 
+        r.id_tiempo_mes,
+        r.cantidad as total_defunciones,
+        t.anio,
+        t.mes,
+        t.nombre_mes
+    FROM covid19.gold.covid19_gold_fact_contexto_renap r
+    JOIN covid19.silver.covid19_gold_dim_tiempo t 
+        ON r.id_tiempo_mes = t.id_tiempo_mes
+    WHERE r.tipo_evento = 'Defunciones'
+    ORDER BY r.id_tiempo_mes
+""").toPandas()
+
+print(f"  ✓ RENAP Defunciones: {df_renap_base.shape[0]} meses")
+print(f"  ✓ Total defunciones: {df_renap_base['total_defunciones'].sum():,}")
+
+# 2. AGREGAR EVENTOS RENAP COMO FEATURES
+print("\n[B2] Pivotando todos los eventos RENAP...")
+df_contexto_completo = spark.table("covid19.gold.covid19_gold_fact_contexto_renap").toPandas()
+
+renap_pivot_b = df_contexto_completo.pivot_table(
+    index='id_tiempo_mes',
+    columns='tipo_evento',
+    values='cantidad',
+    aggfunc='sum',
+    fill_value=0
+).reset_index()
+
+renap_pivot_b.columns = ['id_tiempo_mes'] + [f'renap_{col.replace(" ", "_").lower()}' for col in renap_pivot_b.columns[1:]]
+print(f"  ✓ {renap_pivot_b.shape[1]-1} eventos RENAP como features")
+
+# 3. UNIR DATOS
+print("\n[B3] Uniendo datos...")
+df_b = df_renap_base.merge(renap_pivot_b, on='id_tiempo_mes', how='left')
+renap_feature_cols = [col for col in df_b.columns if col.startswith('renap_')]
+
+# Eliminar 'renap_defunciones' si existe (es el target)
+if 'renap_defunciones' in renap_feature_cols:
+    renap_feature_cols.remove('renap_defunciones')
+    df_b = df_b.drop(columns=['renap_defunciones'])
+
+df_b[renap_feature_cols] = df_b[renap_feature_cols].fillna(0)
+
+print(f"  ✓ Dataset B: {df_b.shape[0]} meses, {df_b.shape[1]} columnas")
+
+# 4. FEATURE ENGINEERING TEMPORAL
+print("\n[B4] Feature engineering temporal...")
+df_b['mes_sin'] = np.sin(2 * np.pi * df_b['mes'] / 12)
+df_b['mes_cos'] = np.cos(2 * np.pi * df_b['mes'] / 12)
+df_b['año_desde_inicio'] = df_b['anio'] - df_b['anio'].min()
+
+print(f"  ✓ Encoding circular de mes")
+print(f"  ✓ Años desde inicio: {df_b['año_desde_inicio'].min()} - {df_b['año_desde_inicio'].max()}")
+
+# 5. PREPARAR X e Y
+print("\n[B5] Preparando features y target...")
+cols_excluir_b = ['id_tiempo_mes', 'total_defunciones', 'anio', 'nombre_mes']
+feature_cols_b = [col for col in df_b.columns if col not in cols_excluir_b]
+
+X_b = df_b[feature_cols_b].select_dtypes(include=[np.number])
+y_b = df_b['total_defunciones']
+
+print(f"  ✓ Features: {X_b.shape[1]}")
+print(f"  ✓ Target → Media: {y_b.mean():.2f}, Min: {y_b.min()}, Max: {y_b.max()}")
+
+# 6. TRAIN/TEST SPLIT (mismo random_state para consistencia)
+print("\n[B6] Train/Test split (80/20)...")
+X_b_train, X_b_test, y_b_train, y_b_test = train_test_split(
+    X_b, y_b, test_size=0.2, random_state=42
+)
+
+scaler_b = StandardScaler()
+X_b_train_scaled = scaler_b.fit_transform(X_b_train)
+X_b_test_scaled = scaler_b.transform(X_b_test)
+
+print(f"  ✓ Train: {X_b_train.shape[0]} meses")
+print(f"  ✓ Test: {X_b_test.shape[0]} meses")
+
+# 7. ENTRENAR RIDGE Y LASSO
+print("\n[B7] Entrenando Ridge y Lasso...")
+ridge_b = Ridge(alpha=1.0, random_state=42)
+ridge_b.fit(X_b_train_scaled, y_b_train)
+y_pred_ridge_b = ridge_b.predict(X_b_test_scaled)
+
+lasso_b = Lasso(alpha=1.0, random_state=42)
+lasso_b.fit(X_b_train_scaled, y_b_train)
+y_pred_lasso_b = lasso_b.predict(X_b_test_scaled)
+
+print("  ✓ Ridge B entrenado")
+print("  ✓ Lasso B entrenado")
+
+# 8. MÉTRICAS MODELO B
+print("\n[B8] Evaluando Modelo B...")
+rmse_ridge_b = np.sqrt(mean_squared_error(y_b_test, y_pred_ridge_b))
+r2_ridge_b = r2_score(y_b_test, y_pred_ridge_b)
+mae_ridge_b = mean_absolute_error(y_b_test, y_pred_ridge_b)
+
+rmse_lasso_b = np.sqrt(mean_squared_error(y_b_test, y_pred_lasso_b))
+r2_lasso_b = r2_score(y_b_test, y_pred_lasso_b)
+mae_lasso_b = mean_absolute_error(y_b_test, y_pred_lasso_b)
+
+resultados_b = pd.DataFrame({
+    'Modelo': ['Ridge B', 'Lasso B'],
+    'RMSE': [rmse_ridge_b, rmse_lasso_b],
+    'R²': [r2_ridge_b, r2_lasso_b],
+    'MAE': [mae_ridge_b, mae_lasso_b]
+})
+
+print("\n" + "="*70)
+print("RESULTADOS MODELO B (RENAP AGREGADO)")
+print("="*70)
+display(resultados_b)
+
+mejor_b = 'Ridge B' if r2_ridge_b > r2_lasso_b else 'Lasso B'
+print(f"\n🏆 Mejor en Modelo B: {mejor_b} (R² = {max(r2_ridge_b, r2_lasso_b):.4f})")
+
+# 9. GUARDAR PARA VALIDACIÓN CRUZADA
+test_indices_b = X_b_test.index
+df_test_b = df_b.loc[test_indices_b, ['id_tiempo_mes', 'total_defunciones']].copy()
+df_test_b['pred_ridge_b'] = y_pred_ridge_b
+df_test_b['pred_lasso_b'] = y_pred_lasso_b
+
+print(f"\n✓ Datos de test guardados para validación cruzada")
+
+# COMMAND ----------
+
+# DBTITLE 1,Validación Cruzada: Modelo A vs Modelo B
+# === VALIDACIÓN CRUZADA: SUMA(MODELO A) vs MODELO B ===
+
+print("\n" + "="*70)
+print("VALIDACIÓN CRUZADA: CONSISTENCIA ENTRE MODELOS")
+print("="*70)
+
+print("\nObjetivo: Verificar que suma(predicciones Modelo A) ≈ predicciones Modelo B")
+
+# 1. AGREGAR PREDICCIONES DEL MODELO A POR MES
+print("\n[V1] Agregando predicciones del Modelo A por mes...")
+aggregado_a = df_test_a.groupby('id_tiempo_mes').agg({
+    'cantidad_fallecidos': 'sum',
+    'pred_ridge_a': 'sum',
+    'pred_lasso_a': 'sum'
+}).reset_index()
+
+aggregado_a.columns = ['id_tiempo_mes', 'real_sum_a', 'pred_ridge_sum_a', 'pred_lasso_sum_a']
+print(f"  ✓ {aggregado_a.shape[0]} meses en test del Modelo A")
+
+# 2. UNIR CON PREDICCIONES DEL MODELO B
+print("\n[V2] Comparando con predicciones del Modelo B...")
+comparacion = aggregado_a.merge(
+    df_test_b[['id_tiempo_mes', 'total_defunciones', 'pred_ridge_b', 'pred_lasso_b']], 
+    on='id_tiempo_mes', 
+    how='inner'
+)
+
+print(f"  ✓ {comparacion.shape[0]} meses comunes en ambos tests")
+
+# 3. CALCULAR DIFERENCIAS
+print("\n[V3] Calculando diferencias...")
+comparacion['diff_ridge'] = comparacion['pred_ridge_sum_a'] - comparacion['pred_ridge_b']
+comparacion['diff_lasso'] = comparacion['pred_lasso_sum_a'] - comparacion['pred_lasso_b']
+comparacion['diff_ridge_pct'] = 100 * comparacion['diff_ridge'] / comparacion['pred_ridge_b']
+comparacion['diff_lasso_pct'] = 100 * comparacion['diff_lasso'] / comparacion['pred_lasso_b']
+
+# 4. ESTADÍSTICAS DE VALIDACIÓN
+print("\n" + "="*70)
+print("ESTADÍSTICAS DE VALIDACIÓN CRUZADA")
+print("="*70)
+
+print("\n🔹 Ridge:")
+print(f"  Diferencia media: {comparacion['diff_ridge'].mean():.2f} fallecidos")
+print(f"  Diferencia absoluta media: {comparacion['diff_ridge'].abs().mean():.2f}")
+print(f"  Diferencia % media: {comparacion['diff_ridge_pct'].mean():.2f}%")
+print(f"  Diferencia % absoluta media: {comparacion['diff_ridge_pct'].abs().mean():.2f}%")
+
+print("\n🔹 Lasso:")
+print(f"  Diferencia media: {comparacion['diff_lasso'].mean():.2f} fallecidos")
+print(f"  Diferencia absoluta media: {comparacion['diff_lasso'].abs().mean():.2f}")
+print(f"  Diferencia % media: {comparacion['diff_lasso_pct'].mean():.2f}%")
+print(f"  Diferencia % absoluta media: {comparacion['diff_lasso_pct'].abs().mean():.2f}%")
+
+# 5. CORRELACIÓN ENTRE MODELOS
+print("\n" + "="*70)
+print("CORRELACIÓN ENTRE MODELOS A Y B")
+print("="*70)
+
+corr_ridge = np.corrcoef(comparacion['pred_ridge_sum_a'], comparacion['pred_ridge_b'])[0, 1]
+corr_lasso = np.corrcoef(comparacion['pred_lasso_sum_a'], comparacion['pred_lasso_b'])[0, 1]
+
+print(f"\nCorrelación Ridge (A vs B): {corr_ridge:.4f}")
+print(f"Correlación Lasso (A vs B): {corr_lasso:.4f}")
+
+if corr_ridge > 0.8 and corr_lasso > 0.8:
+    print("\n✅ VALIDACIÓN EXITOSA: Alta consistencia entre modelos")
+elif corr_ridge > 0.6 and corr_lasso > 0.6:
+    print("\n⚠️ VALIDACIÓN PARCIAL: Consistencia moderada")
+else:
+    print("\n❌ VALIDACIÓN FALLIDA: Baja consistencia entre modelos")
+
+# 6. VISUALIZACIÓN DE VALIDACIÓN
+print("\n[V4] Generando visualizaciones de validación...")
+
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+# Gráfico 1: Ridge - Scatter
+axes[0, 0].scatter(comparacion['pred_ridge_b'], comparacion['pred_ridge_sum_a'], alpha=0.6, s=50)
+axes[0, 0].plot([comparacion['pred_ridge_b'].min(), comparacion['pred_ridge_b'].max()], 
+                [comparacion['pred_ridge_b'].min(), comparacion['pred_ridge_b'].max()], 
+                'r--', lw=2, label='Línea perfecta')
+axes[0, 0].set_xlabel('Modelo B (RENAP agregado)', fontsize=10)
+axes[0, 0].set_ylabel('Modelo A agregado (suma INE)', fontsize=10)
+axes[0, 0].set_title(f'Ridge: Correlación = {corr_ridge:.4f}', fontsize=11, fontweight='bold')
+axes[0, 0].legend()
+axes[0, 0].grid(True, alpha=0.3)
+
+# Gráfico 2: Lasso - Scatter
+axes[0, 1].scatter(comparacion['pred_lasso_b'], comparacion['pred_lasso_sum_a'], alpha=0.6, s=50, color='orange')
+axes[0, 1].plot([comparacion['pred_lasso_b'].min(), comparacion['pred_lasso_b'].max()], 
+                [comparacion['pred_lasso_b'].min(), comparacion['pred_lasso_b'].max()], 
+                'r--', lw=2, label='Línea perfecta')
+axes[0, 1].set_xlabel('Modelo B (RENAP agregado)', fontsize=10)
+axes[0, 1].set_ylabel('Modelo A agregado (suma INE)', fontsize=10)
+axes[0, 1].set_title(f'Lasso: Correlación = {corr_lasso:.4f}', fontsize=11, fontweight='bold')
+axes[0, 1].legend()
+axes[0, 1].grid(True, alpha=0.3)
+
+# Gráfico 3: Ridge - Diferencias
+axes[1, 0].bar(range(len(comparacion)), comparacion['diff_ridge_pct'], alpha=0.7)
+axes[1, 0].axhline(y=0, color='red', linestyle='--', linewidth=1)
+axes[1, 0].set_xlabel('Mes (test set)', fontsize=10)
+axes[1, 0].set_ylabel('Diferencia %', fontsize=10)
+axes[1, 0].set_title(f'Ridge: Diferencia % (Media: {comparacion["diff_ridge_pct"].mean():.2f}%)', 
+                     fontsize=11, fontweight='bold')
+axes[1, 0].grid(True, alpha=0.3, axis='y')
+
+# Gráfico 4: Lasso - Diferencias
+axes[1, 1].bar(range(len(comparacion)), comparacion['diff_lasso_pct'], alpha=0.7, color='orange')
+axes[1, 1].axhline(y=0, color='red', linestyle='--', linewidth=1)
+axes[1, 1].set_xlabel('Mes (test set)', fontsize=10)
+axes[1, 1].set_ylabel('Diferencia %', fontsize=10)
+axes[1, 1].set_title(f'Lasso: Diferencia % (Media: {comparacion["diff_lasso_pct"].mean():.2f}%)', 
+                     fontsize=11, fontweight='bold')
+axes[1, 1].grid(True, alpha=0.3, axis='y')
+
+plt.tight_layout()
+plt.show()
+
+print("\n✓ Validación cruzada completada")
+
+# COMMAND ----------
+
+# DBTITLE 1,Comparación Final: Baseline vs Modelo Híbrido
+# === COMPARACIÓN FINAL: BASELINE vs MODELO HÍBRIDO ===
+
+print("\n" + "="*70)
+print("COMPARACIÓN FINAL: TODOS LOS MODELOS")
+print("="*70)
+
+# 1. CONSOLIDAR RESULTADOS
+print("\n[F1] Consolidando resultados de todos los modelos...")
+
+# Métricas del Baseline (del primer modelo)
+resultados_final = pd.DataFrame({
+    'Modelo': [
+        'Baseline Ridge',
+        'Baseline Lasso',
+        'Modelo A - Ridge (INE + Dim)',
+        'Modelo A - Lasso (INE + Dim)',
+        'Modelo B - Ridge (RENAP)',
+        'Modelo B - Lasso (RENAP)'
+    ],
+    'Tipo': [
+        'Baseline',
+        'Baseline',
+        'Híbrido A',
+        'Híbrido A',
+        'Híbrido B',
+        'Híbrido B'
+    ],
+    'RMSE': [
+        rmse_ridge,
+        rmse_lasso,
+        rmse_ridge_a,
+        rmse_lasso_a,
+        rmse_ridge_b,
+        rmse_lasso_b
+    ],
+    'R²': [
+        r2_ridge,
+        r2_lasso,
+        r2_ridge_a,
+        r2_lasso_a,
+        r2_ridge_b,
+        r2_lasso_b
+    ],
+    'MAE': [
+        mae_ridge,
+        mae_lasso,
+        mae_ridge_a,
+        mae_lasso_a,
+        mae_ridge_b,
+        mae_lasso_b
+    ],
+    'Features': [
+        X.shape[1],
+        X.shape[1],
+        X_a.shape[1],
+        X_a.shape[1],
+        X_b.shape[1],
+        X_b.shape[1]
+    ],
+    'Registros': [
+        X.shape[0],
+        X.shape[0],
+        X_a.shape[0],
+        X_a.shape[0],
+        X_b.shape[0],
+        X_b.shape[0]
+    ]
+})
+
+print("\n" + "="*70)
+print("TABLA COMPARATIVA COMPLETA")
+print("="*70)
+display(resultados_final)
+
+# 2. ANÁLISIS DE MEJORA
+print("\n" + "="*70)
+print("ANÁLISIS DE MEJORAS")
+print("="*70)
+
+# Mejor modelo en cada categoría
+mejor_baseline = resultados_final[resultados_final['Tipo'] == 'Baseline'].sort_values('R²', ascending=False).iloc[0]
+mejor_a = resultados_final[resultados_final['Tipo'] == 'Híbrido A'].sort_values('R²', ascending=False).iloc[0]
+mejor_b = resultados_final[resultados_final['Tipo'] == 'Híbrido B'].sort_values('R²', ascending=False).iloc[0]
+
+print("\n🏆 Mejor por categoría:")
+print(f"  Baseline:    {mejor_baseline['Modelo']} (R² = {mejor_baseline['R²']:.4f})")
+print(f"  Híbrido A:   {mejor_a['Modelo']} (R² = {mejor_a['R²']:.4f})")
+print(f"  Híbrido B:   {mejor_b['Modelo']} (R² = {mejor_b['R²']:.4f})")
+
+# Calcular mejora
+mejora_a_vs_baseline = ((mejor_a['R²'] - mejor_baseline['R²']) / abs(mejor_baseline['R²'])) * 100
+mejora_b_vs_baseline = ((mejor_b['R²'] - mejor_baseline['R²']) / abs(mejor_baseline['R²'])) * 100
+
+print("\n📈 Mejoras vs Baseline:")
+print(f"  Modelo A: {mejora_a_vs_baseline:+.2f}% en R²")
+print(f"  Modelo B: {mejora_b_vs_baseline:+.2f}% en R²")
+
+# 3. COMPARACIÓN DE CARACTERÍSTICAS
+print("\n" + "="*70)
+print("COMPARACIÓN DE CARACTERÍSTICAS")
+print("="*70)
+
+comparacion_caracteristicas = pd.DataFrame({
+    'Característica': [
+        'Fuentes de datos',
+        'Usa dimensiones',
+        'One-hot encoding',
+        'Flag es_covid',
+        'RENAP Defunciones',
+        'Granularidad',
+        'Interpretabilidad',
+        'Features totales',
+        'Validación cruzada'
+    ],
+    'Baseline': [
+        'INE+CR+OMS',
+        '❌ No',
+        'IDs opacos',
+        '❌ No',
+        '❌ No (solo eventos)',
+        'Desagregado',
+        'Baja',
+        f'{X.shape[1]}',
+        '❌ No'
+    ],
+    'Modelo A (Híbrido)': [
+        '✅ Solo INE',
+        '✅ Sí (completo)',
+        '✅ Descriptivo',
+        '✅ Sí',
+        '✅ Sí (feature)',
+        'Desagregado',
+        'Alta',
+        f'{X_a.shape[1]}',
+        '✅ Sí (vs B)'
+    ],
+    'Modelo B (Híbrido)': [
+        '✅ RENAP oficial',
+        'N/A (agregado)',
+        'N/A',
+        'N/A',
+        '✅ Sí (target)',
+        'Mensual agregado',
+        'Media',
+        f'{X_b.shape[1]}',
+        '✅ Sí (vs A)'
+    ]
+})
+
+display(comparacion_caracteristicas)
+
+# 4. VISUALIZACIÓN COMPARATIVA
+print("\n[F2] Generando visualización comparativa...")
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+# Gráfico 1: R² Comparison
+modelos_nombres = ['Baseline\nRidge', 'Baseline\nLasso', 'A\nRidge', 'A\nLasso', 'B\nRidge', 'B\nLasso']
+r2_valores = resultados_final['R²'].values
+colores = ['gray', 'gray', 'blue', 'blue', 'green', 'green']
+
+axes[0].bar(range(len(modelos_nombres)), r2_valores, color=colores, alpha=0.7)
+axes[0].set_xticks(range(len(modelos_nombres)))
+axes[0].set_xticklabels(modelos_nombres, fontsize=9)
+axes[0].set_ylabel('R²', fontsize=11)
+axes[0].set_title('Comparación de R²', fontsize=12, fontweight='bold')
+axes[0].grid(True, alpha=0.3, axis='y')
+axes[0].axhline(y=0, color='red', linestyle='--', linewidth=1)
+
+# Gráfico 2: RMSE Comparison
+rmse_valores = resultados_final['RMSE'].values
+
+axes[1].bar(range(len(modelos_nombres)), rmse_valores, color=colores, alpha=0.7)
+axes[1].set_xticks(range(len(modelos_nombres)))
+axes[1].set_xticklabels(modelos_nombres, fontsize=9)
+axes[1].set_ylabel('RMSE', fontsize=11)
+axes[1].set_title('Comparación de RMSE (menor es mejor)', fontsize=12, fontweight='bold')
+axes[1].grid(True, alpha=0.3, axis='y')
+
+# Gráfico 3: Features count
+features_count = resultados_final['Features'].values
+
+axes[2].bar(range(len(modelos_nombres)), features_count, color=colores, alpha=0.7)
+axes[2].set_xticks(range(len(modelos_nombres)))
+axes[2].set_xticklabels(modelos_nombres, fontsize=9)
+axes[2].set_ylabel('Número de Features', fontsize=11)
+axes[2].set_title('Complejidad del Modelo', fontsize=12, fontweight='bold')
+axes[2].grid(True, alpha=0.3, axis='y')
+
+plt.tight_layout()
+plt.show()
+
+# 5. RECOMENDACIÓN FINAL
+print("\n" + "="*70)
+print("🎯 RECOMENDACIÓN FINAL")
+print("="*70)
+
+mejor_global = resultados_final.sort_values('R²', ascending=False).iloc[0]
+
+print(f"\n🏆 Mejor modelo global: {mejor_global['Modelo']}")
+print(f"   R² = {mejor_global['R²']:.4f}")
+print(f"   RMSE = {mejor_global['RMSE']:.2f}")
+print(f"   MAE = {mejor_global['MAE']:.2f}")
+print(f"   Features = {int(mejor_global['Features'])}")
+
+if 'Modelo A' in mejor_global['Modelo']:
+    print("\n✅ VENTAJAS DEL MODELO A (ganador):")
+    print("   - Predicción granular (departamento/causa/perfil)")
+    print("   - Features descriptivos e interpretables")
+    print("   - Usa diseño dimensional completo")
+    print("   - Incluye flag es_covid")
+    print("   - Validado contra RENAP agregado")
+elif 'Modelo B' in mejor_global['Modelo']:
+    print("\n✅ VENTAJAS DEL MODELO B (ganador):")
+    print("   - Usa fuente más precisa (RENAP oficial)")
+    print("   - Predicción de total mensual nacional")
+    print("   - Mayor cobertura temporal")
+    print("   - Más simple y robusto")
+else:
+    print("\n⚠️ Baseline ganó, pero:")
+    print("   - Modelo Híbrido tiene mejor interpretabilidad")
+    print("   - Modelo Híbrido permite análisis granular")
+    print("   - Recomendación: usar Modelo A para reporting detallado")
+
+print("\n" + "="*70)
+print("✓ ANÁLISIS COMPLETO DEL MODELO HÍBRIDO FINALIZADO")
+print("="*70)
