@@ -4,6 +4,19 @@
 
 Desarrollo e implementación de modelos de Machine Learning para predicción de mortalidad por COVID-19 en Guatemala, utilizando arquitectura de modelo híbrido con regresión Ridge y Lasso.
 
+## Entregables de la Fase 3
+
+**Carpeta de Google Drive:** [Entregables Fase 3](https://drive.google.com/drive/folders/1Urbp5TExVfD38XosDqN6UbG5lkw6mAKv?usp=drive_link)
+
+La carpeta contiene los siguientes documentos:
+
+- **Presupuesto** - Desglose de costos del proyecto
+- **Cronograma** - Planificación temporal de actividades
+- **WBS (Work Breakdown Structure)** - Estructura de desglose del trabajo
+- **Presentación: COVID-19 Storytelling** - Presentación narrativa de los hallazgos
+- **Informe de consultoría** - Documento ejecutivo del proyecto
+- **Visualizaciones COVID-19 Power BI.pbix** - Dashboard interactivo desarrollado en Power BI Desktop
+
 ## Enfoque del Modelo Híbrido
 
 Se implementaron dos modelos complementarios:
@@ -20,7 +33,7 @@ Se implementaron dos modelos complementarios:
 - Mayor poder predictivo (R² = 0.31)
 - Recomendado para proyecciones operacionales
 
-## Documentación
+## Documentación Técnica
 
 - [Análisis Técnico del Modelo Híbrido](analisis-modelo-hibrido.md) - Análisis completo de decisiones de diseño, resultados y lecciones aprendidas
 - Notebook implementado: `Predicción Mortalidad COVID-19 Ridge Lasso.ipynb`
@@ -48,6 +61,7 @@ Se implementaron dos modelos complementarios:
 - Pandas y NumPy
 - Databricks Notebooks
 - Unity Catalog (tablas Gold)
+- Power BI Desktop (visualizaciones)
 
 ## Conclusiones Clave
 
