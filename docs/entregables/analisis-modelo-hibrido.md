@@ -424,3 +424,128 @@ Este proyecto demuestra:
 - Notebook: Predicción Mortalidad COVID-19 Ridge Lasso.ipynb
 - Carpeta: /Mortalidad ML/
 - Fuentes de datos: INE Guatemala, RENAP, Cruz Roja, OMS
+
+---
+
+## VISUALIZACIONES DEL MODELO
+
+El notebook incluye un conjunto completo de visualizaciones para analizar el desempeño del Modelo B (RENAP Agregado), que es el modelo con mejor desempeño (R² = 0.31).
+
+### Visualizaciones Principales
+
+#### 1. Serie Temporal: Predicciones vs Valores Reales
+
+Muestra la evolución temporal de las predicciones comparadas con los valores reales de defunciones mensuales.
+
+**Características:**
+- Línea negra: Valores reales (RENAP oficial)
+- Línea azul punteada: Predicciones Ridge B
+- Línea verde punteada: Predicciones Lasso B (mejor modelo)
+- Permite visualizar tendencias y estacionalidad
+- Identifica períodos donde el modelo subestima o sobrestima
+
+**Hallazgos:**
+- El modelo Lasso B sigue de cerca la tendencia real
+- Captura variaciones estacionales correctamente
+- Errores más grandes en períodos de alta mortalidad (picos COVID-19)
+
+#### 2. Scatter Plot: Predicciones vs Valores Reales
+
+Gráfico de dispersión que muestra la relación entre predicciones y valores reales.
+
+**Características:**
+- Eje X: Predicciones del Modelo B Lasso
+- Eje Y: Valores reales
+- Línea roja diagonal: Predicción perfecta
+- Puntos cercanos a la línea indican buenas predicciones
+
+**Interpretación:**
+- Dispersión moderada alrededor de la línea perfecta
+- Sin patrones sistemáticos de sesgo
+- Algunos outliers en valores extremos
+
+#### 3. Análisis de Residuos
+
+Gráfico de residuos (errores) vs predicciones para detectar patrones.
+
+**Características:**
+- Eje X: Predicciones
+- Eje Y: Residuos (Real - Predicción)
+- Línea roja horizontal en y=0 (error cero)
+- Bandas grises: ±1 desviación estándar
+
+**Lo que buscamos:**
+- Residuos distribuidos aleatoriamente alrededor de cero
+- Sin patrones sistemáticos (forma de embudo, curvas)
+- Varianza constante (homocedasticidad)
+
+**Resultado:**
+- Residuos razonablemente aleatorios
+- Media cercana a cero (sin sesgo sistemático)
+- Varianza relativamente constante
+
+#### 4. Distribución de Residuos
+
+Histograma con curva de densidad (KDE) de los residuos.
+
+**Características:**
+- Histograma: Frecuencia de errores
+- Línea roja: Estimación de densidad de kernel (KDE)
+- Línea verde vertical: Media de residuos
+
+**Lo que buscamos:**
+- Distribución aproximadamente normal (campana de Gauss)
+- Media cercana a cero
+- Sin colas pesadas (pocos outliers extremos)
+
+**Resultado:**
+- Distribución cercana a la normal
+- Media muy cercana a cero
+- Algunos outliers en ambos extremos
+
+#### 5. Feature Importance (Top 10)
+
+Gráfico de barras horizontales mostrando los 10 features más importantes del modelo.
+
+**Características:**
+- Barras verdes: Coeficientes positivos (aumentan predicción)
+- Barras rojas: Coeficientes negativos (disminuyen predicción)
+- Longitud de barra: Magnitud del efecto
+
+**Hallazgos clave:**
+- 10 features con coeficientes positivos
+- 15 features con coeficientes negativos
+- 0 features eliminados por Lasso (todos aportan información)
+- Variables temporales (mes_sin, mes_cos) capturan estacionalidad
+- Eventos RENAP específicos correlacionan con mortalidad
+
+### Acceso a las Visualizaciones
+
+Las visualizaciones están disponibles en el notebook:
+- **Ubicación:** `/Mortalidad ML/Predicción Mortalidad COVID-19 Ridge Lasso.ipynb`
+- **Celda:** "Visualizaciones Detalladas del Modelo B"
+- **Formato:** Gráficos interactivos generados con matplotlib
+
+### Interpretación General
+
+Las visualizaciones confirman que:
+
+1. **El modelo captura la tendencia general** - La serie temporal muestra buen seguimiento de la señal real
+
+2. **Sin sesgos sistemáticos** - Los residuos están centrados en cero y distribuidos normalmente
+
+3. **Errores homocedásticos** - La varianza de residuos es relativamente constante
+
+4. **Features relevantes** - Ningún feature fue eliminado por Lasso, indicando que todos aportan información
+
+5. **Limitaciones identificables** - Errores mayores en períodos de alta mortalidad sugieren que modelos no lineales podrían mejorar el desempeño
+
+### Recomendaciones para Visualización
+
+Al presentar los resultados:
+
+- **Para audiencia técnica:** Mostrar las 5 visualizaciones completas
+- **Para audiencia ejecutiva:** Enfocarse en serie temporal y scatter plot
+- **Para informe escrito:** Incluir serie temporal y distribución de residuos
+
+Las gráficas pueden exportarse desde el notebook en formato PNG con alta resolución para incluirlas en presentaciones o informes.

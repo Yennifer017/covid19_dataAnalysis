@@ -671,3 +671,184 @@ else:
 print("\n" + "="*70)
 print("✓ ANÁLISIS COMPLETO DEL MODELO HÍBRIDO FINALIZADO")
 print("="*70)
+
+# COMMAND ----------
+
+# DBTITLE 1,Visualizaciones Detalladas del Modelo B
+# === VISUALIZACIONES DETALLADAS: MODELO B (MEJOR RESULTADO) ===
+
+print("\n" + "="*70)
+print("VISUALIZACIONES DETALLADAS - MODELO B")
+print("="*70)
+
+# Preparar datos para visualización
+df_viz_b = df_test_b.copy()
+df_viz_b = df_viz_b.sort_values('id_tiempo_mes')
+
+# Calcular residuos del mejor modelo (Lasso B)
+df_viz_b['residuos_lasso'] = df_viz_b['total_defunciones'] - df_viz_b['pred_lasso_b']
+
+print(f"\n[VIZ] Generando 4 visualizaciones para Modelo B Lasso...")
+
+# Crear figura con 4 subplots
+fig = plt.figure(figsize=(16, 12))
+
+# ============================================================================
+# 1. SERIE TEMPORAL: Predicciones vs Valores Reales
+# ============================================================================
+ax1 = plt.subplot(2, 2, 1)
+ax1.plot(range(len(df_viz_b)), df_viz_b['total_defunciones'], 
+         marker='o', linestyle='-', linewidth=2, markersize=5,
+         label='Valores Reales (RENAP)', color='black', alpha=0.8)
+ax1.plot(range(len(df_viz_b)), df_viz_b['pred_ridge_b'], 
+         marker='s', linestyle='--', linewidth=1.5, markersize=4,
+         label='Predicciones Ridge B', color='blue', alpha=0.7)
+ax1.plot(range(len(df_viz_b)), df_viz_b['pred_lasso_b'], 
+         marker='^', linestyle='--', linewidth=1.5, markersize=4,
+         label='Predicciones Lasso B (Mejor)', color='green', alpha=0.7)
+
+ax1.set_xlabel('Meses (Test Set)', fontsize=11)
+ax1.set_ylabel('Total Defunciones', fontsize=11)
+ax1.set_title('Serie Temporal: Predicciones vs Valores Reales\nModelo B (RENAP Agregado)', 
+              fontsize=12, fontweight='bold')
+ax1.legend(loc='best', fontsize=9)
+ax1.grid(True, alpha=0.3)
+
+# Agregar R² como texto
+ax1.text(0.02, 0.98, f'R² Lasso B = {r2_lasso_b:.4f}',
+         transform=ax1.transAxes, fontsize=10,
+         verticalalignment='top',
+         bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+# ============================================================================
+# 2. SCATTER PLOT: Predicciones vs Reales (Lasso B)
+# ============================================================================
+ax2 = plt.subplot(2, 2, 2)
+ax2.scatter(df_viz_b['pred_lasso_b'], df_viz_b['total_defunciones'], 
+            alpha=0.6, s=80, color='green', edgecolors='black', linewidth=0.5)
+
+# Línea de predicción perfecta
+min_val = min(df_viz_b['pred_lasso_b'].min(), df_viz_b['total_defunciones'].min())
+max_val = max(df_viz_b['pred_lasso_b'].max(), df_viz_b['total_defunciones'].max())
+ax2.plot([min_val, max_val], [min_val, max_val], 
+         'r--', linewidth=2, label='Predicción Perfecta', alpha=0.8)
+
+ax2.set_xlabel('Predicciones (Lasso B)', fontsize=11)
+ax2.set_ylabel('Valores Reales', fontsize=11)
+ax2.set_title('Scatter Plot: Predicciones vs Valores Reales\nModelo B Lasso', 
+              fontsize=12, fontweight='bold')
+ax2.legend(loc='best', fontsize=9)
+ax2.grid(True, alpha=0.3)
+
+# Agregar métricas
+ax2.text(0.02, 0.98, 
+         f'R² = {r2_lasso_b:.4f}\nRMSE = {rmse_lasso_b:.2f}\nMAE = {mae_lasso_b:.2f}',
+         transform=ax2.transAxes, fontsize=9,
+         verticalalignment='top',
+         bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.7))
+
+# ============================================================================
+# 3. ANÁLISIS DE RESIDUOS: Residuos vs Predicciones
+# ============================================================================
+ax3 = plt.subplot(2, 2, 3)
+ax3.scatter(df_viz_b['pred_lasso_b'], df_viz_b['residuos_lasso'], 
+            alpha=0.6, s=80, color='orange', edgecolors='black', linewidth=0.5)
+ax3.axhline(y=0, color='red', linestyle='--', linewidth=2, label='Residuo = 0')
+
+# Bandas de confianza
+std_residuos = df_viz_b['residuos_lasso'].std()
+ax3.axhline(y=std_residuos, color='gray', linestyle=':', linewidth=1.5, alpha=0.7)
+ax3.axhline(y=-std_residuos, color='gray', linestyle=':', linewidth=1.5, alpha=0.7)
+ax3.fill_between(ax3.get_xlim(), -std_residuos, std_residuos, 
+                  alpha=0.1, color='gray', label='±1 Desv. Est.')
+
+ax3.set_xlabel('Predicciones (Lasso B)', fontsize=11)
+ax3.set_ylabel('Residuos (Real - Predicción)', fontsize=11)
+ax3.set_title('Análisis de Residuos\nModelo B Lasso', 
+              fontsize=12, fontweight='bold')
+ax3.legend(loc='best', fontsize=9)
+ax3.grid(True, alpha=0.3)
+
+# Estadísticas de residuos
+media_res = df_viz_b['residuos_lasso'].mean()
+ax3.text(0.02, 0.98, 
+         f'Media residuos = {media_res:.2f}\nDesv. Est. = {std_residuos:.2f}',
+         transform=ax3.transAxes, fontsize=9,
+         verticalalignment='top',
+         bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.7))
+
+# ============================================================================
+# 4. DISTRIBUCIÓN DE RESIDUOS: Histograma + KDE
+# ============================================================================
+ax4 = plt.subplot(2, 2, 4)
+ax4.hist(df_viz_b['residuos_lasso'], bins=15, 
+         alpha=0.6, color='purple', edgecolor='black', density=True)
+
+# Agregar KDE
+from scipy import stats
+kde = stats.gaussian_kde(df_viz_b['residuos_lasso'])
+x_range = np.linspace(df_viz_b['residuos_lasso'].min(), 
+                      df_viz_b['residuos_lasso'].max(), 100)
+ax4.plot(x_range, kde(x_range), 'r-', linewidth=2, label='KDE')
+
+# Línea vertical en media
+ax4.axvline(x=media_res, color='green', linestyle='--', 
+            linewidth=2, label=f'Media = {media_res:.2f}')
+
+ax4.set_xlabel('Residuos', fontsize=11)
+ax4.set_ylabel('Densidad', fontsize=11)
+ax4.set_title('Distribución de Residuos\nModelo B Lasso', 
+              fontsize=12, fontweight='bold')
+ax4.legend(loc='best', fontsize=9)
+ax4.grid(True, alpha=0.3, axis='y')
+
+plt.tight_layout()
+plt.show()
+
+print("\n✓ Visualizaciones generadas")
+
+# ============================================================================
+# 5. FEATURE IMPORTANCE: Top 10 Coeficientes
+# ============================================================================
+print("\n[VIZ] Generando gráfico de Feature Importance...")
+
+# Obtener coeficientes
+coeficientes_lasso_b = lasso_b.coef_
+feature_names_b = X_b.columns
+
+# Crear DataFrame de importancia
+importancia_df = pd.DataFrame({
+    'Feature': feature_names_b,
+    'Coeficiente': coeficientes_lasso_b,
+    'Importancia_Abs': np.abs(coeficientes_lasso_b)
+}).sort_values('Importancia_Abs', ascending=False)
+
+# Top 10 features
+top_10 = importancia_df.head(10)
+
+# Gráfico
+fig, ax = plt.subplots(figsize=(12, 6))
+colors = ['green' if x > 0 else 'red' for x in top_10['Coeficiente']]
+ax.barh(range(len(top_10)), top_10['Coeficiente'], color=colors, alpha=0.7, edgecolor='black')
+ax.set_yticks(range(len(top_10)))
+ax.set_yticklabels(top_10['Feature'], fontsize=10)
+ax.axvline(x=0, color='black', linestyle='-', linewidth=1)
+ax.set_xlabel('Coeficiente (Lasso B)', fontsize=11)
+ax.set_title('Top 10 Features más Importantes\nModelo B Lasso (RENAP Agregado)', 
+             fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+
+# Invertir eje Y para que el más importante esté arriba
+ax.invert_yaxis()
+
+plt.tight_layout()
+plt.show()
+
+print(f"\n✓ Feature Importance calculado ({len(importancia_df)} features totales)")
+print(f"  - Features con coef. > 0: {(coeficientes_lasso_b > 0).sum()}")
+print(f"  - Features con coef. = 0 (eliminados por Lasso): {(coeficientes_lasso_b == 0).sum()}")
+print(f"  - Features con coef. < 0: {(coeficientes_lasso_b < 0).sum()}")
+
+print("\n" + "="*70)
+print("✓ VISUALIZACIONES DETALLADAS COMPLETADAS")
+print("="*70)

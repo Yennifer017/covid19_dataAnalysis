@@ -35,7 +35,7 @@ Se implementaron dos modelos complementarios:
 
 ## Documentación Técnica
 
-- [Análisis Técnico del Modelo Híbrido](analisis-modelo-hibrido.md) - Análisis completo de decisiones de diseño, resultados y lecciones aprendidas
+- [Análisis Técnico del Modelo Híbrido](analisis-modelo-hibrido.md) - Análisis completo de decisiones de diseño, resultados, lecciones aprendidas y visualizaciones
 - Notebook implementado: `Predicción Mortalidad COVID-19 Ridge Lasso.ipynb`
 - Ubicación: `/Mortalidad ML/` en el workspace
 
@@ -48,6 +48,18 @@ Se implementaron dos modelos complementarios:
 | B - Ridge | 0.2930 | 975.51 | 785.52 | Proyección operacional |
 | **B - Lasso** | **0.3052** | **967.08** | **783.14** | **Proyección operacional** |
 
+## Visualizaciones del Modelo
+
+El notebook incluye visualizaciones completas del Modelo B (mejor desempeño):
+
+1. **Serie Temporal** - Predicciones vs valores reales a lo largo del tiempo
+2. **Scatter Plot** - Relación entre predicciones y valores reales
+3. **Análisis de Residuos** - Detección de patrones en errores de predicción
+4. **Distribución de Residuos** - Verificación de normalidad en los errores
+5. **Feature Importance** - Top 10 variables más influyentes
+
+Ver la sección completa de [Visualizaciones del Modelo](analisis-modelo-hibrido.md#visualizaciones-del-modelo) en el análisis técnico.
+
 ## Validación
 
 - Validación cruzada entre modelos confirmó que el Modelo B (agregado) es superior para predicción de totales mensuales
@@ -59,9 +71,10 @@ Se implementaron dos modelos complementarios:
 - Python 3.x con PySpark
 - Scikit-learn (Ridge, Lasso, métricas)
 - Pandas y NumPy
+- Matplotlib y Seaborn (visualizaciones)
 - Databricks Notebooks
 - Unity Catalog (tablas Gold)
-- Power BI Desktop (visualizaciones)
+- Power BI Desktop (dashboards)
 
 ## Conclusiones Clave
 
