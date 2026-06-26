@@ -1,13 +1,13 @@
-# 🔍 Análisis Técnico: Modelo Híbrido de Predicción de Mortalidad COVID-19
+# Análisis Técnico: Modelo Híbrido de Predicción de Mortalidad COVID-19
 
-## 🎯 Decisiones de Diseño del Modelo Híbrido
+## Decisiones de Diseño del Modelo Híbrido
 
-### **¿Por qué dos modelos?**
+### ¿Por qué dos modelos?
 
 El problema de predicción de mortalidad puede abordarse desde dos perspectivas complementarias:
 
-1. **Modelo A (Granular):** Predecir por departamento/causa/perfil → Útil para análisis detallado
-2. **Modelo B (Agregado):** Predecir total mensual nacional → Útil para planificación
+1. **Modelo A (Granular):** Predecir por departamento/causa/perfil - Útil para análisis detallado
+2. **Modelo B (Agregado):** Predecir total mensual nacional - Útil para planificación
 
 **Hipótesis inicial:** El Modelo A ofrecería mayor interpretabilidad, mientras que el Modelo B tendría mayor poder predictivo (menor ruido).
 
@@ -15,11 +15,11 @@ El problema de predicción de mortalidad puede abordarse desde dos perspectivas 
 
 ---
 
-## 🔧 MODELO A: INE Desagregado + Diseño Dimensional
+## MODELO A: INE Desagregado + Diseño Dimensional
 
 ### Decisiones de Diseño
 
-#### 1. **Filtrar solo fuente INE**
+#### 1. Filtrar solo fuente INE
 
 **Problema detectado:** La tabla `fact_mortalidad_unificada` mezcla tres fuentes:
 
@@ -33,7 +33,7 @@ El problema de predicción de mortalidad puede abordarse desde dos perspectivas 
 
 **Resultado:** 48,656 registros consistentes.
 
-#### 2. **JOIN con dimensiones del modelo estrella**
+#### 2. JOIN con dimensiones del modelo estrella
 
 **Dimensiones disponibles:**
 - `dim_geografia`: 25 departamentos
@@ -43,7 +43,7 @@ El problema de predicción de mortalidad puede abordarse desde dos perspectivas 
 
 **Beneficio:** Features descriptivos interpretables (ej: `sexo_Hombre`, `rango_edad_65+`) en lugar de IDs opacos (ej: `id_perfil_H-65+`).
 
-#### 3. **Feature engineering dimensional**
+#### 3. Feature engineering dimensional
 
 ```python
 # Flag COVID explícito
@@ -57,7 +57,7 @@ df['mes_cos'] = np.cos(2 * π * mes / 12)
 df['total_defunciones_renap'] = renap_defunciones_mes
 ```
 
-#### 4. **One-hot encoding descriptivo**
+#### 4. One-hot encoding descriptivo
 
 ```python
 pd.get_dummies(df, columns=[
@@ -75,7 +75,7 @@ pd.get_dummies(df, columns=[
 | Ridge A | **0.0052** | **28.07** | **13.83** |
 | Lasso A | 0.0027 | 28.11 | 13.90 |
 
-**🏆 Mejor: Ridge A**
+**Mejor resultado:** Ridge A
 
 ### Interpretación
 
@@ -100,11 +100,11 @@ pd.get_dummies(df, columns=[
 
 ---
 
-## 🔧 MODELO B: RENAP Agregado Mensual
+## MODELO B: RENAP Agregado Mensual
 
 ### Decisiones de Diseño
 
-#### 1. **Usar RENAP Defunciones como target**
+#### 1. Usar RENAP Defunciones como target
 
 **Hallazgo clave:** El campo `tipo_evento = 'Defunciones'` en `fact_contexto_renap` contiene datos oficiales de registro civil:
 
@@ -121,7 +121,7 @@ pd.get_dummies(df, columns=[
 
 **Decisión:** Usar RENAP como fuente oficial para Modelo B.
 
-#### 2. **Pivotar eventos RENAP como features**
+#### 2. Pivotar eventos RENAP como features
 
 ```python
 # 22 eventos RENAP como variables predictoras
@@ -136,7 +136,7 @@ renap_pivot = df_contexto.pivot_table(
 
 **Hipótesis:** Eventos demográficos (nacimientos, matrimonios) correlacionan con mortalidad general.
 
-#### 3. **Features temporales**
+#### 3. Features temporales
 
 ```python
 # Capturar estacionalidad
@@ -154,7 +154,7 @@ año_desde_inicio = año - 2015
 | Ridge B | 0.2930 | 975.51 | 785.52 |
 | Lasso B | **0.3052** | **967.08** | **783.14** |
 
-**🏆 Mejor: Lasso B**
+**Mejor resultado:** Lasso B
 
 ### Interpretación
 
@@ -178,7 +178,7 @@ año_desde_inicio = año - 2015
 
 ---
 
-## 🔄 VALIDACIÓN CRUZADA: Consistencia entre Modelos
+## VALIDACIÓN CRUZADA: Consistencia entre Modelos
 
 ### Objetivo
 
@@ -195,11 +195,11 @@ Si ambos modelos son buenos, agregar predicciones del Modelo A debería aproxima
 | Diferencia media | -6,638 fallecidos | -6,578 fallecidos |
 | Diferencia % | **-81.77%** | **-80.90%** |
 | Correlación | **0.4683** | **0.3716** |
-| Veredicto | ❌ Baja consistencia | ❌ Baja consistencia |
+| Veredicto | Baja consistencia | Baja consistencia |
 
 ### Interpretación
 
-**⚠️ Modelo A subestima significativamente los totales**
+**Modelo A subestima significativamente los totales**
 
 **Razones:**
 
@@ -221,7 +221,7 @@ Para predicción de totales mensuales, **predecir directamente (Modelo B) es sup
 
 ---
 
-## 📊 COMPARACIÓN FINAL
+## COMPARACIÓN FINAL
 
 ### Tabla Comparativa
 
@@ -258,7 +258,7 @@ Para predicción de totales mensuales, **predecir directamente (Modelo B) es sup
 │  └─────────────────────────────────────────────────┘    │
 │                                                           │
 │  ┌─────────────────────────────────────────────────┐    │
-│  │ MODELO B: RENAP Agregado Mensual        🏆     │    │
+│  │ MODELO B: RENAP Agregado Mensual               │    │
 │  ├─────────────────────────────────────────────────┤    │
 │  │ • Fuente: RENAP Defunciones (oficial)           │    │
 │  │ • Features: 25 (eventos RENAP + tiempo)         │    │
@@ -280,9 +280,9 @@ Para predicción de totales mensuales, **predecir directamente (Modelo B) es sup
 
 ---
 
-## 🎓 LECCIONES APRENDIDAS
+## LECCIONES APRENDIDAS
 
-### 1. **Granularidad vs Ruido**
+### 1. Granularidad vs Ruido
 
 **Lección:** Más granular ≠ mejor predicción
 
@@ -293,16 +293,16 @@ Para predicción de totales mensuales, **predecir directamente (Modelo B) es sup
 
 **Trade-off:** Interpretabilidad (Modelo A) vs poder predictivo (Modelo B)
 
-### 2. **Calidad de Fuentes**
+### 2. Calidad de Fuentes
 
-**Lección:** RENAP oficial >> INE desagregado para totales
+**Lección:** RENAP oficial > INE desagregado para totales
 
 - RENAP: Registro civil oficial (100%)
 - INE: Estadísticas agregadas (99%)
 
 **Diferencia:** 1-4% parece pequeño, pero se acumula en predicciones.
 
-### 3. **Diseño Dimensional**
+### 3. Diseño Dimensional
 
 **Lección:** JOIN con dimensiones mejora interpretabilidad, no necesariamente R²
 
@@ -310,7 +310,7 @@ Para predicción de totales mensuales, **predecir directamente (Modelo B) es sup
 - Mejor que IDs opacos: `id_perfil_H-65+`
 - **Pero:** No garantiza mejor predicción si hay mucho ruido
 
-### 4. **Agregación Post-Predicción**
+### 4. Agregación Post-Predicción
 
 **Lección:** Predecir agregados directamente > sumar predicciones granulares
 
@@ -320,7 +320,7 @@ Validación cruzada:
 
 **Por qué falla:** Errores se acumulan, no se cancelan (sesgo sistemático).
 
-### 5. **Regularización**
+### 5. Regularización
 
 **Lección:** Ridge y Lasso funcionan bien con features limitados
 
@@ -330,21 +330,21 @@ Validación cruzada:
 
 ---
 
-## 🚀 RECOMENDACIONES
+## RECOMENDACIONES
 
 ### Para Uso Operacional
 
 **Modelo recomendado:** Modelo B - Lasso (RENAP)
 
 **Casos de uso:**
-- ✅ Proyección de mortalidad mensual nacional
-- ✅ Planificación de recursos de salud
-- ✅ Monitoreo de tendencias temporales
+- Proyección de mortalidad mensual nacional
+- Planificación de recursos de salud
+- Monitoreo de tendencias temporales
 
 **NO usar para:**
-- ❌ Predicción por departamento específico
-- ❌ Análisis de causas específicas
-- ❌ Perfiles demográficos detallados
+- Predicción por departamento específico
+- Análisis de causas específicas
+- Perfiles demográficos detallados
 
 ### Para Mejoras Futuras
 
@@ -391,7 +391,7 @@ Validación cruzada:
 
 ---
 
-## 📌 RESUMEN EJECUTIVO
+## RESUMEN EJECUTIVO
 
 | Aspecto | Hallazgo |
 |---------|----------|
@@ -405,22 +405,22 @@ Validación cruzada:
 
 ---
 
-## 🎯 VALOR DEL PROYECTO
+## VALOR DEL PROYECTO
 
 Este proyecto demuestra:
 
-1. ✅ **Pensamiento crítico:** Identificar que más granular ≠ mejor
-2. ✅ **Diseño experimental:** Comparar enfoques sistemáticamente
-3. ✅ **Validación rigurosa:** Validación cruzada detectó inconsistencia
-4. ✅ **Interpretación honesta:** Reconocer cuándo R² bajo es esperado
-5. ✅ **Propuestas concretas:** Trabajo futuro específico y viable
+1. **Pensamiento crítico:** Identificar que más granular ≠ mejor
+2. **Diseño experimental:** Comparar enfoques sistemáticamente
+3. **Validación rigurosa:** Validación cruzada detectó inconsistencia
+4. **Interpretación honesta:** Reconocer cuándo R² bajo es esperado
+5. **Propuestas concretas:** Trabajo futuro específico y viable
 
 **Mensaje final:** Más importante que obtener R² alto es entender **por qué** un modelo funciona mejor que otro, y diseñar la solución apropiada para el problema específico.
 
 ---
 
-## 📁 Documentación Relacionada
+## Referencias
 
-- **DOCUMENTACION_PROYECTO.md** - Documentación completa para informe
-- **Notebook:** Predicción Mortalidad COVID-19 Ridge Lasso.ipynb
-- **Carpeta:** /Mortalidad ML/
+- Notebook: Predicción Mortalidad COVID-19 Ridge Lasso.ipynb
+- Carpeta: /Mortalidad ML/
+- Fuentes de datos: INE Guatemala, RENAP, Cruz Roja, OMS

@@ -3,158 +3,6 @@
 # [tool.databricks.environment]
 # environment_version = "5"
 # ///
-# === PREDICCIÓN DE MORTALIDAD COVID-19 CON RIDGE Y LASSO ===
-
-# 1. IMPORTAR LIBRERÍAS
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import Ridge, Lasso
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-import warnings
-warnings.filterwarnings('ignore')
-
-print("="*70)
-print("MODELO DE PREDICCIÓN DE MORTALIDAD COVID-19")
-print("Técnicas: Ridge Regression vs Lasso Regression")
-print("="*70)
-
-# 2. CARGAR DATOS
-print("\n[1/8] Cargando datos...")
-df_mortalidad = spark.table("covid19.gold.covid19_gold_fact_mortalidad_unificada").toPandas()
-df_contexto = spark.table("covid19.gold.covid19_gold_fact_contexto_renap").toPandas()
-
-print(f"  ✓ Mortalidad: {df_mortalidad.shape[0]:,} registros")
-print(f"  ✓ Contexto RENAP: {df_contexto.shape[0]:,} registros")
-
-# 3. PREPARAR DATOS DE CONTEXTO (PIVOT)
-print("\n[2/8] Pivotando datos de contexto RENAP...")
-df_contexto_pivot = df_contexto.pivot_table(
-    index='id_tiempo_mes',
-    columns='tipo_evento',
-    values='cantidad',
-    aggfunc='sum',
-    fill_value=0
-).reset_index()
-
-df_contexto_pivot.columns = ['id_tiempo_mes'] + [f'renap_{col.replace(" ", "_").lower()}' for col in df_contexto_pivot.columns[1:]]
-print(f"  ✓ {df_contexto_pivot.shape[1]-1} variables RENAP creadas")
-
-# 4. UNIR DATOS Y FEATURE ENGINEERING
-print("\n[3/8] Uniendo datos y creando features...")
-df = df_mortalidad.merge(df_contexto_pivot, on='id_tiempo_mes', how='left')
-renap_cols = [col for col in df.columns if col.startswith('renap_')]
-df[renap_cols] = df[renap_cols].fillna(0)
-df['año'] = df['id_tiempo_mes'].str[:4].astype(int)
-df['mes'] = df['id_tiempo_mes'].str[5:7].astype(int)
-df_encoded = pd.get_dummies(df, columns=['id_geografia', 'id_perfil', 'id_causa'], drop_first=False)
-print(f"  ✓ Dataset final: {df_encoded.shape[0]:,} registros, {df_encoded.shape[1]} features")
-
-# 5. PREPARAR X E Y
-print("\n[4/8] Preparando features y target...")
-columnas_excluir = ['id_tiempo_mes', 'fuente', 'fecha_actualizacion', 'cantidad_fallecidos']
-feature_cols = [col for col in df_encoded.columns if col not in columnas_excluir]
-X = df_encoded[feature_cols].select_dtypes(include=[np.number])
-y = df_encoded['cantidad_fallecidos']
-print(f"  ✓ {X.shape[1]} features seleccionados")
-print(f"  ✓ Target → Media: {y.mean():.2f}, Min: {y.min()}, Max: {y.max()}")
-
-# 6. TRAIN/TEST SPLIT
-print("\n[5/8] Dividiendo datos (80% train / 20% test)...")
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
-print(f"  ✓ Train: {X_train.shape[0]:,} registros")
-print(f"  ✓ Test:  {X_test.shape[0]:,} registros")
-
-# 7. ENTRENAR MODELOS
-print("\n[6/8] Entrenando modelos...")
-ridge_model = Ridge(alpha=1.0, random_state=42)
-ridge_model.fit(X_train_scaled, y_train)
-y_pred_ridge = ridge_model.predict(X_test_scaled)
-print("  ✓ Ridge entrenado")
-
-lasso_model = Lasso(alpha=1.0, random_state=42)
-lasso_model.fit(X_train_scaled, y_train)
-y_pred_lasso = lasso_model.predict(X_test_scaled)
-print("  ✓ Lasso entrenado")
-
-# 8. EVALUAR Y COMPARAR
-print("\n[7/8] Evaluando modelos...")
-rmse_ridge = np.sqrt(mean_squared_error(y_test, y_pred_ridge))
-r2_ridge = r2_score(y_test, y_pred_ridge)
-mae_ridge = mean_absolute_error(y_test, y_pred_ridge)
-rmse_lasso = np.sqrt(mean_squared_error(y_test, y_pred_lasso))
-r2_lasso = r2_score(y_test, y_pred_lasso)
-mae_lasso = mean_absolute_error(y_test, y_pred_lasso)
-
-resultados = pd.DataFrame({
-    'Modelo': ['Ridge', 'Lasso'],
-    'RMSE': [rmse_ridge, rmse_lasso],
-    'R²': [r2_ridge, r2_lasso],
-    'MAE': [mae_ridge, mae_lasso]
-})
-
-print("\n" + "="*70)
-print("RESULTADOS - COMPARACIÓN DE MODELOS")
-print("="*70)
-display(resultados)
-
-mejor_modelo = 'Ridge' if r2_ridge > r2_lasso else 'Lasso'
-mejor_r2 = max(r2_ridge, r2_lasso)
-print(f"\n🏆 MEJOR MODELO: {mejor_modelo} (R² = {mejor_r2:.4f})")
-
-# 9. VISUALIZACIONES
-print("\n[8/8] Generando visualizaciones...")
-fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-axes[0].scatter(y_test, y_pred_ridge, alpha=0.5, s=20)
-axes[0].plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
-axes[0].set_xlabel('Valores Reales', fontsize=11)
-axes[0].set_ylabel('Predicciones', fontsize=11)
-axes[0].set_title(f'Ridge - R² = {r2_ridge:.4f}, RMSE = {rmse_ridge:.2f}', fontsize=12, fontweight='bold')
-axes[0].grid(True, alpha=0.3)
-
-axes[1].scatter(y_test, y_pred_lasso, alpha=0.5, s=20, color='orange')
-axes[1].plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
-axes[1].set_xlabel('Valores Reales', fontsize=11)
-axes[1].set_ylabel('Predicciones', fontsize=11)
-axes[1].set_title(f'Lasso - R² = {r2_lasso:.4f}, RMSE = {rmse_lasso:.2f}', fontsize=12, fontweight='bold')
-axes[1].grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.show()
-
-# Gráfico 2: Top Features
-best_model = ridge_model if r2_ridge > r2_lasso else lasso_model
-model_name = 'Ridge' if r2_ridge > r2_lasso else 'Lasso'
-
-coef_df = pd.DataFrame({'Feature': X.columns, 'Coeficiente': best_model.coef_})
-coef_df['Abs_Coef'] = np.abs(coef_df['Coeficiente'])
-coef_df_top = coef_df.sort_values('Abs_Coef', ascending=False).head(15)
-
-plt.figure(figsize=(10, 6))
-plt.barh(range(len(coef_df_top)), coef_df_top['Coeficiente'], 
-         color=['green' if x > 0 else 'red' for x in coef_df_top['Coeficiente']])
-plt.yticks(range(len(coef_df_top)), coef_df_top['Feature'], fontsize=9)
-plt.xlabel('Coeficiente', fontsize=11)
-plt.title(f'Top 15 Features más Importantes - Modelo {model_name}', fontsize=12, fontweight='bold')
-plt.axvline(x=0, color='black', linestyle='--', linewidth=0.8)
-plt.grid(True, alpha=0.3, axis='x')
-plt.tight_layout()
-plt.show()
-
-print("\n" + "="*70)
-print("✓ ANÁLISIS COMPLETADO")
-print("="*70)
-
-
-# COMMAND ----------
-
 # DBTITLE 1,📋 Modelo Híbrido - Documentación
 # MAGIC %md
 # MAGIC # 🔄 MODELO HÍBRIDO: Diseño Dimensional Mejorado
@@ -182,16 +30,20 @@ print("="*70)
 # MAGIC
 # MAGIC ---
 # MAGIC
-# MAGIC ## Comparación con Modelo Baseline
+# MAGIC ## Características del Modelo Híbrido
 # MAGIC
-# MAGIC | Aspecto | Baseline (Actual) | Modelo Híbrido |
-# MAGIC |---------|-------------------|----------------|
-# MAGIC | Fuentes | Mezcla INE+CR+OMS | INE filtrado + RENAP |
-# MAGIC | Dimensiones | No usa (IDs) | JOIN completo |
-# MAGIC | Features | 24 (opacos) | 45+ (descriptivos) |
-# MAGIC | COVID flag | No | Sí (es_covid) |
-# MAGIC | Validación | Ninguna | Cruzada A↔B |
-# MAGIC | Interpretabilidad | Baja | Alta |
+# MAGIC ### Modelo A (INE Desagregado)
+# MAGIC - ✅ Fuente: Solo INE (filtrado, sin mezclas)
+# MAGIC - ✅ Dimensiones: JOIN completo con dim_geografia, dim_perfil, dim_causa, dim_tiempo
+# MAGIC - ✅ Features: Descriptivos (sexo, rango_edad, categoria_general, departamento)
+# MAGIC - ✅ Flag COVID: es_covid como feature binaria
+# MAGIC - ✅ RENAP: Total defunciones mensual como contexto
+# MAGIC
+# MAGIC ### Modelo B (RENAP Agregado)
+# MAGIC - ✅ Fuente: RENAP oficial (registro civil)
+# MAGIC - ✅ Features: 22 eventos RENAP + variables temporales (25 total)
+# MAGIC - ✅ Target: total_defunciones (precisión oficial)
+# MAGIC - ✅ Cobertura: 136 meses históricos
 
 # COMMAND ----------
 
@@ -617,68 +469,53 @@ print("\n✓ Validación cruzada completada")
 # COMMAND ----------
 
 # DBTITLE 1,Comparación Final: Baseline vs Modelo Híbrido
-# === COMPARACIÓN FINAL: BASELINE vs MODELO HÍBRIDO ===
+# === COMPARACIÓN FINAL: MODELO A vs MODELO B ===
 
 print("\n" + "="*70)
-print("COMPARACIÓN FINAL: TODOS LOS MODELOS")
+print("COMPARACIÓN FINAL: MODELO HÍBRIDO A vs B")
 print("="*70)
 
 # 1. CONSOLIDAR RESULTADOS
-print("\n[F1] Consolidando resultados de todos los modelos...")
+print("\n[F1] Consolidando resultados de ambos modelos...")
 
-# Métricas del Baseline (del primer modelo)
 resultados_final = pd.DataFrame({
     'Modelo': [
-        'Baseline Ridge',
-        'Baseline Lasso',
         'Modelo A - Ridge (INE + Dim)',
         'Modelo A - Lasso (INE + Dim)',
         'Modelo B - Ridge (RENAP)',
         'Modelo B - Lasso (RENAP)'
     ],
     'Tipo': [
-        'Baseline',
-        'Baseline',
         'Híbrido A',
         'Híbrido A',
         'Híbrido B',
         'Híbrido B'
     ],
     'RMSE': [
-        rmse_ridge,
-        rmse_lasso,
         rmse_ridge_a,
         rmse_lasso_a,
         rmse_ridge_b,
         rmse_lasso_b
     ],
     'R²': [
-        r2_ridge,
-        r2_lasso,
         r2_ridge_a,
         r2_lasso_a,
         r2_ridge_b,
         r2_lasso_b
     ],
     'MAE': [
-        mae_ridge,
-        mae_lasso,
         mae_ridge_a,
         mae_lasso_a,
         mae_ridge_b,
         mae_lasso_b
     ],
     'Features': [
-        X.shape[1],
-        X.shape[1],
         X_a.shape[1],
         X_a.shape[1],
         X_b.shape[1],
         X_b.shape[1]
     ],
     'Registros': [
-        X.shape[0],
-        X.shape[0],
         X_a.shape[0],
         X_a.shape[0],
         X_b.shape[0],
@@ -691,28 +528,27 @@ print("TABLA COMPARATIVA COMPLETA")
 print("="*70)
 display(resultados_final)
 
-# 2. ANÁLISIS DE MEJORA
+# 2. ANÁLISIS COMPARATIVO A vs B
 print("\n" + "="*70)
-print("ANÁLISIS DE MEJORAS")
+print("COMPARACIÓN MODELO A vs MODELO B")
 print("="*70)
 
 # Mejor modelo en cada categoría
-mejor_baseline = resultados_final[resultados_final['Tipo'] == 'Baseline'].sort_values('R²', ascending=False).iloc[0]
 mejor_a = resultados_final[resultados_final['Tipo'] == 'Híbrido A'].sort_values('R²', ascending=False).iloc[0]
 mejor_b = resultados_final[resultados_final['Tipo'] == 'Híbrido B'].sort_values('R²', ascending=False).iloc[0]
 
-print("\n🏆 Mejor por categoría:")
-print(f"  Baseline:    {mejor_baseline['Modelo']} (R² = {mejor_baseline['R²']:.4f})")
-print(f"  Híbrido A:   {mejor_a['Modelo']} (R² = {mejor_a['R²']:.4f})")
-print(f"  Híbrido B:   {mejor_b['Modelo']} (R² = {mejor_b['R²']:.4f})")
+print("\n🏆 Mejor en cada categoría:")
+print(f"  Modelo A (granular):   {mejor_a['Modelo']} (R² = {mejor_a['R²']:.4f})")
+print(f"  Modelo B (agregado):   {mejor_b['Modelo']} (R² = {mejor_b['R²']:.4f})")
 
-# Calcular mejora
-mejora_a_vs_baseline = ((mejor_a['R²'] - mejor_baseline['R²']) / abs(mejor_baseline['R²'])) * 100
-mejora_b_vs_baseline = ((mejor_b['R²'] - mejor_baseline['R²']) / abs(mejor_baseline['R²'])) * 100
-
-print("\n📈 Mejoras vs Baseline:")
-print(f"  Modelo A: {mejora_a_vs_baseline:+.2f}% en R²")
-print(f"  Modelo B: {mejora_b_vs_baseline:+.2f}% en R²")
+# Diferencia entre A y B
+if mejor_b['R²'] > mejor_a['R²']:
+    factor_mejora = mejor_b['R²'] / mejor_a['R²']
+    print(f"\n📈 Modelo B supera a Modelo A:")
+    print(f"  Factor de mejora: {factor_mejora:.1f}x")
+    print(f"  Diferencia absoluta: {(mejor_b['R²'] - mejor_a['R²']):.4f}")
+else:
+    print(f"\n⚠️ Modelo A tiene mejor R², pero menor interpretabilidad en escala agregada")
 
 # 3. COMPARACIÓN DE CARACTERÍSTICAS
 print("\n" + "="*70)
@@ -731,35 +567,24 @@ comparacion_caracteristicas = pd.DataFrame({
         'Features totales',
         'Validación cruzada'
     ],
-    'Baseline': [
-        'INE+CR+OMS',
-        '❌ No',
-        'IDs opacos',
-        '❌ No',
-        '❌ No (solo eventos)',
-        'Desagregado',
-        'Baja',
-        f'{X.shape[1]}',
-        '❌ No'
-    ],
-    'Modelo A (Híbrido)': [
-        '✅ Solo INE',
+    'Modelo A (INE Desagregado)': [
+        '✅ Solo INE (filtrado)',
         '✅ Sí (completo)',
         '✅ Descriptivo',
         '✅ Sí',
         '✅ Sí (feature)',
-        'Desagregado',
+        'Desagregado (depto/causa/perfil)',
         'Alta',
         f'{X_a.shape[1]}',
         '✅ Sí (vs B)'
     ],
-    'Modelo B (Híbrido)': [
+    'Modelo B (RENAP Agregado)': [
         '✅ RENAP oficial',
         'N/A (agregado)',
         'N/A',
         'N/A',
         '✅ Sí (target)',
-        'Mensual agregado',
+        'Mensual agregado (nacional)',
         'Media',
         f'{X_b.shape[1]}',
         '✅ Sí (vs A)'
@@ -774,9 +599,9 @@ print("\n[F2] Generando visualización comparativa...")
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
 # Gráfico 1: R² Comparison
-modelos_nombres = ['Baseline\nRidge', 'Baseline\nLasso', 'A\nRidge', 'A\nLasso', 'B\nRidge', 'B\nLasso']
+modelos_nombres = ['A\nRidge', 'A\nLasso', 'B\nRidge', 'B\nLasso']
 r2_valores = resultados_final['R²'].values
-colores = ['gray', 'gray', 'blue', 'blue', 'green', 'green']
+colores = ['blue', 'blue', 'green', 'green']
 
 axes[0].bar(range(len(modelos_nombres)), r2_valores, color=colores, alpha=0.7)
 axes[0].set_xticks(range(len(modelos_nombres)))
@@ -836,10 +661,12 @@ elif 'Modelo B' in mejor_global['Modelo']:
     print("   - Mayor cobertura temporal")
     print("   - Más simple y robusto")
 else:
-    print("\n⚠️ Baseline ganó, pero:")
-    print("   - Modelo Híbrido tiene mejor interpretabilidad")
-    print("   - Modelo Híbrido permite análisis granular")
-    print("   - Recomendación: usar Modelo A para reporting detallado")
+    print("\n✅ VENTAJAS DEL MODELO A (ganador):")
+    print("   - Predicción granular (departamento/causa/perfil)")
+    print("   - Features descriptivos e interpretables")
+    print("   - Usa diseño dimensional completo")
+    print("   - Incluye flag es_covid")
+    print("   - Validado contra RENAP agregado")
 
 print("\n" + "="*70)
 print("✓ ANÁLISIS COMPLETO DEL MODELO HÍBRIDO FINALIZADO")
